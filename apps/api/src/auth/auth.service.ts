@@ -21,6 +21,7 @@ export class AuthService {
     if (await this.prisma.user.findUnique({ where: { email } })) throw new ConflictException('Email address is already registered');
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const user = await this.prisma.user.create({ data: { email, passwordHash, firstName: dto.firstName, lastName: dto.lastName, accounts: { create: { accountNumber: this.createAccountNumber(), type: AccountType.SAVINGS } } } });
+    await this.prisma.auditLog.create({ data: { userId: user.id, action: 'REGISTRATION_SUCCEEDED', entityType: 'User', entityId: user.id } });
     return this.issueTokens(user);
   }
 

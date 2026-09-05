@@ -23,17 +23,19 @@ export class TransactionsService {
         if (!recipient || recipient.status !== AccountStatus.ACTIVE) throw new NotFoundException('Destination account not found');
         if (sender.id === recipient.id || sender.currency !== recipient.currency) throw new BadRequestException('Invalid destination account');
         const transaction = await tx.transaction.create({ data: { sourceAccountId: sender.id, destinationAccountId: recipient.id, idempotencyKey, requestHash, amount, reference: randomUUID(), description: dto.description, status: TransactionStatus.PENDING } });
+        await tx.auditLog.create({ data: { userId: senderId, action: AuditAction.TRANSFER_CREATED, entityType: 'Transaction', entityId: transaction.id } });
         const fraud = await this.fraudService.assess(tx, senderId, sender.id, amount.toNumber(), context);
         await tx.fraudAssessment.create({ data: { transactionId: transaction.id, ...fraud } });
+        await tx.auditLog.create({ data: { userId: senderId, action: AuditAction.FRAUD_ASSESSMENT_GENERATED, entityType: 'FraudAssessment', entityId: transaction.id, metadata: { riskScore: fraud.riskScore, riskLevel: fraud.riskLevel, reasons: fraud.reasons } } });
         await this.recordDevice(tx, senderId, context);
         if (fraud.decision === FraudDecision.HOLD) {
           const held = await tx.transaction.update({ where: { id: transaction.id }, data: { status: TransactionStatus.HELD } });
-          await tx.notification.create({ data: { userId: senderId, type: 'FRAUD_ALERT', title: 'Transfer held for review', message: 'Your transfer is being reviewed for security.' } });
-          await tx.auditLog.create({ data: { userId: senderId, action: AuditAction.FRAUD_ALERT_GENERATED, entityType: 'Transaction', entityId: transaction.id, metadata: { riskScore: fraud.riskScore, reasons: fraud.reasons } } });
+          await tx.notification.createMany({ data: [{ userId: senderId, type: 'FRAUD_ALERT', title: 'Fraud warning', message: 'Unusual activity was detected on your transfer.' }, { userId: senderId, type: 'TRANSACTION_UPDATE', title: 'Transfer held for review', message: 'Your transfer is being reviewed for security.' }] });
+          await tx.auditLog.create({ data: { userId: senderId, action: AuditAction.TRANSFER_HELD, entityType: 'Transaction', entityId: transaction.id } });
           return held;
         }
         if (fraud.decision === FraudDecision.VERIFY) return transaction;
-        return this.completeTransfer(tx, transaction.id, sender.id, recipient.id, amount, senderId);
+        return this.completeTransfer(tx, transaction.id, sender.id, recipient.id, amount, senderId, senderId);
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -49,7 +51,7 @@ export class TransactionsService {
     return this.prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.findFirst({ where: { id: transactionId, sourceAccount: { userId: senderId }, status: TransactionStatus.PENDING }, include: { fraudAssessment: true } });
       if (!transaction || transaction.fraudAssessment?.decision !== FraudDecision.VERIFY) throw new NotFoundException('Transfer awaiting verification not found');
-      return this.completeTransfer(tx, transaction.id, transaction.sourceAccountId, transaction.destinationAccountId, transaction.amount, senderId);
+      return this.completeTransfer(tx, transaction.id, transaction.sourceAccountId, transaction.destinationAccountId, transaction.amount, senderId, senderId);
     });
   }
 
@@ -59,7 +61,7 @@ export class TransactionsService {
       if (reserved.count !== 1) throw new BadRequestException('Held transaction has already been processed');
       const transaction = await tx.transaction.findUnique({ where: { id: transactionId }, include: { sourceAccount: { select: { userId: true } } } });
       if (!transaction) throw new NotFoundException('Transaction not found');
-      await this.completeTransfer(tx, transaction.id, transaction.sourceAccountId, transaction.destinationAccountId, transaction.amount, adminId);
+      await this.completeTransfer(tx, transaction.id, transaction.sourceAccountId, transaction.destinationAccountId, transaction.amount, adminId, transaction.sourceAccount.userId);
       const completed = await tx.transaction.update({ where: { id: transaction.id }, data: { reviewedAt: new Date(), reviewedById: adminId } });
       await tx.auditLog.create({ data: { userId: adminId, action: AuditAction.TRANSACTION_APPROVED, entityType: 'Transaction', entityId: transactionId } });
       await tx.auditLog.create({ data: { userId: adminId, action: AuditAction.ADMIN_REVIEW_PERFORMED, entityType: 'Transaction', entityId: transactionId, metadata: { decision: 'APPROVED' } } });
@@ -83,12 +85,13 @@ export class TransactionsService {
   list(senderId: string) { return this.prisma.transaction.findMany({ where: { sourceAccount: { userId: senderId } }, orderBy: { createdAt: 'desc' }, include: { destinationAccount: { select: { accountNumber: true } }, fraudAssessment: true } }); }
   async getDetail(senderId: string, transactionId: string) { const transaction = await this.prisma.transaction.findFirst({ where: { id: transactionId, sourceAccount: { userId: senderId } }, include: { fraudAssessment: true } }); if (!transaction) throw new NotFoundException('Transaction not found'); return transaction; }
 
-  private async completeTransfer(tx: FraudTransactionClient, transactionId: string, sourceAccountId: string, destinationAccountId: string, amount: Prisma.Decimal, userId: string) {
+  private async completeTransfer(tx: FraudTransactionClient, transactionId: string, sourceAccountId: string, destinationAccountId: string, amount: Prisma.Decimal, auditUserId: string, notifyUserId: string) {
     const debit = await tx.account.updateMany({ where: { id: sourceAccountId, status: AccountStatus.ACTIVE, balance: { gte: amount } }, data: { balance: { decrement: amount } } });
     if (debit.count !== 1) throw new BadRequestException('Insufficient account balance');
     await tx.account.update({ where: { id: destinationAccountId, status: AccountStatus.ACTIVE }, data: { balance: { increment: amount } } });
     const transaction = await tx.transaction.update({ where: { id: transactionId }, data: { status: TransactionStatus.COMPLETED, completedAt: new Date() } });
-    await tx.auditLog.create({ data: { userId, action: AuditAction.TRANSFER_COMPLETED, entityType: 'Transaction', entityId: transactionId } });
+    await tx.auditLog.create({ data: { userId: auditUserId, action: AuditAction.TRANSFER_COMPLETED, entityType: 'Transaction', entityId: transactionId } });
+    await tx.notification.create({ data: { userId: notifyUserId, type: 'TRANSACTION_UPDATE', title: 'Transfer completed', message: 'Your transfer was completed successfully.' } });
     return transaction;
   }
 
