@@ -8,11 +8,16 @@
     "dev": "pnpm --parallel --filter web --filter api dev",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
+    "start:api": "pnpm --filter api start",
+    "build:api": "pnpm --filter api build",
     "lint": "pnpm --filter web lint && pnpm --filter api lint",
     "test": "pnpm --filter api test",
+    "test:api": "pnpm --filter api test",
     "typecheck": "pnpm --filter web typecheck && pnpm --filter api typecheck",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:status": "prisma migrate status",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio"
   },
   "devDependencies": {

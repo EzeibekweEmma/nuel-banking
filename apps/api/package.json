@@ -5,8 +5,10 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
+    "start": "node dist/main",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest --runInBand",
+    "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
