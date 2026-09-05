@@ -52,6 +52,31 @@ export class TransactionsService {
     });
   }
 
+  async approveHeld(adminId: string, transactionId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const reserved = await tx.transaction.updateMany({ where: { id: transactionId, status: TransactionStatus.HELD }, data: { status: TransactionStatus.PENDING } });
+      if (reserved.count !== 1) throw new BadRequestException('Held transaction has already been processed');
+      const transaction = await tx.transaction.findUnique({ where: { id: transactionId }, include: { sourceAccount: { select: { userId: true } } } });
+      if (!transaction) throw new NotFoundException('Transaction not found');
+      await this.completeTransfer(tx, transaction.id, transaction.sourceAccountId, transaction.destinationAccountId, transaction.amount, adminId);
+      const completed = await tx.transaction.update({ where: { id: transaction.id }, data: { reviewedAt: new Date(), reviewedById: adminId } });
+      await tx.auditLog.create({ data: { userId: adminId, action: AuditAction.ADMIN_REVIEW_PERFORMED, entityType: 'Transaction', entityId: transactionId, metadata: { decision: 'APPROVED' } } });
+      await tx.notification.create({ data: { userId: transaction.sourceAccount.userId, type: 'TRANSACTION_UPDATE', title: 'Transfer approved', message: 'Your held transfer has been approved and completed.' } });
+      return completed;
+    });
+  }
+
+  async rejectHeld(adminId: string, transactionId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findFirst({ where: { id: transactionId, status: TransactionStatus.HELD }, include: { sourceAccount: { select: { userId: true } } } });
+      if (!transaction) throw new BadRequestException('Held transaction has already been processed');
+      const rejected = await tx.transaction.update({ where: { id: transactionId }, data: { status: TransactionStatus.REJECTED, reviewedAt: new Date(), reviewedById: adminId } });
+      await tx.auditLog.create({ data: { userId: adminId, action: AuditAction.ADMIN_REVIEW_PERFORMED, entityType: 'Transaction', entityId: transactionId, metadata: { decision: 'REJECTED' } } });
+      await tx.notification.create({ data: { userId: transaction.sourceAccount.userId, type: 'TRANSACTION_UPDATE', title: 'Transfer rejected', message: 'Your held transfer was rejected after security review.' } });
+      return rejected;
+    });
+  }
+
   list(senderId: string) { return this.prisma.transaction.findMany({ where: { sourceAccount: { userId: senderId } }, orderBy: { createdAt: 'desc' }, include: { destinationAccount: { select: { accountNumber: true } }, fraudAssessment: true } }); }
   async getDetail(senderId: string, transactionId: string) { const transaction = await this.prisma.transaction.findFirst({ where: { id: transactionId, sourceAccount: { userId: senderId } }, include: { fraudAssessment: true } }); if (!transaction) throw new NotFoundException('Transaction not found'); return transaction; }
 
