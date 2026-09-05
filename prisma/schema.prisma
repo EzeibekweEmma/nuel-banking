@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum TransactionStatus {
+  PENDING_VERIFICATION
+  COMPLETED
+  HELD
+  REJECTED
+}
+
+enum FraudRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FraudDecision {
+  APPROVE
+  VERIFY
+  HOLD
+}
+
+enum NotificationType {
+  FRAUD_ALERT
+  TRANSACTION_UPDATE
+  SECURITY_ALERT
+}
+
+enum AuditAction {
+  LOGIN_SUCCEEDED
+  LOGIN_FAILED
+  TRANSFER_CREATED
+  TRANSACTION_APPROVED
+  TRANSACTION_REJECTED
+  FRAUD_ALERT_GENERATED
+  ADMIN_REVIEW_PERFORMED
+}
+
+model User {
+  id                   String             @id @default(cuid())
+  email                String             @unique
+  passwordHash         String
+  firstName            String
+  lastName             String
+  role                 UserRole           @default(CUSTOMER)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  accounts             Account[]
+  beneficiaries        Beneficiary[]
+  devices              Device[]
+  notifications        Notification[]
+  chatConversations    ChatConversation[]
+  auditLogs            AuditLog[]
+  refreshTokens        RefreshToken[]
+  reviewedTransactions Transaction[]      @relation("AdminReviewedTransactions")
+}
+
+model Account {
+  id                   String        @id @default(cuid())
+  userId               String
+  accountNumber        String        @unique
+  balance              Decimal       @db.Decimal(18, 2) @default(0)
+  currency             String        @default("NGN")
+  isActive             Boolean       @default(true)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sentTransactions     Transaction[] @relation("SourceAccountTransactions")
+  receivedTransactions Transaction[] @relation("DestinationAccountTransactions")
+  beneficiaries        Beneficiary[] @relation("BeneficiaryAccounts")
+
+  @@index([userId])
+}
+
+model Beneficiary {
+  id               String    @id @default(cuid())
+  userId           String
+  accountId        String
+  nickname         String
+  createdAt        DateTime  @default(now())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account          Account   @relation("BeneficiaryAccounts", fields: [accountId], references: [id], onDelete: Restrict)
+  transactions     Transaction[]
+
+  @@unique([userId, accountId])
+  @@index([accountId])
+}
+
+model Transaction {
+  id                String             @id @default(cuid())
+  sourceAccountId   String
+  destinationAccountId String
+  beneficiaryId     String?
+  amount            Decimal            @db.Decimal(18, 2)
+  reference         String             @unique
+  description       String?
+  status            TransactionStatus  @default(PENDING_VERIFICATION)
+  createdAt         DateTime           @default(now())
+  completedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewedById      String?
+  sourceAccount     Account            @relation("SourceAccountTransactions", fields: [sourceAccountId], references: [id], onDelete: Restrict)
+  destinationAccount Account            @relation("DestinationAccountTransactions", fields: [destinationAccountId], references: [id], onDelete: Restrict)
+  beneficiary       Beneficiary?       @relation(fields: [beneficiaryId], references: [id], onDelete: SetNull)
+  reviewedBy        User?              @relation("AdminReviewedTransactions", fields: [reviewedById], references: [id], onDelete: SetNull)
+  fraudAssessment   FraudAssessment?
+
+  @@index([sourceAccountId, createdAt])
+  @@index([destinationAccountId, createdAt])
+  @@index([status])
+}
+
+model FraudAssessment {
+  id            String          @id @default(cuid())
+  transactionId String          @unique
+  riskScore     Int
+  riskLevel     FraudRiskLevel
+  decision      FraudDecision
+  reasons       String[]
+  createdAt     DateTime        @default(now())
+  transaction   Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
+
+model Device {
+  id          String   @id @default(cuid())
+  userId      String
+  fingerprint String
+  lastLocation String?
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model ChatConversation {
+  id        String        @id @default(cuid())
+  userId    String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  content        String
+  isFromCustomer Boolean
+  createdAt      DateTime         @default(now())
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String?
+  action    AuditAction
+  entityType String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

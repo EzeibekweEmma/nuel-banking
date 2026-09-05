@@ -1,0 +1,31 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { AccountsModule } from './accounts/accounts.module';
+import { AdminModule } from './admin/admin.module';
+import { AuditModule } from './audit/audit.module';
+import { AuthModule } from './auth/auth.module';
+import { BeneficiariesModule } from './beneficiaries/beneficiaries.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
+import { FraudModule } from './fraud/fraud.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { UsersModule } from './users/users.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    AuthModule,
+    UsersModule,
+    AccountsModule,
+    TransactionsModule,
+    BeneficiariesModule,
+    FraudModule,
+    ChatbotModule,
+    NotificationsModule,
+    AdminModule,
+    AuditModule,
+  ],
+})
+export class AppModule {}

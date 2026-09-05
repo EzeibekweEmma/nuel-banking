@@ -1,0 +1,24 @@
+{
+  "name": "ai-powered-banking",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "build": "pnpm --filter web build && pnpm --filter api build",
+    "dev": "pnpm --parallel --filter web --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "lint": "pnpm --filter web lint && pnpm --filter api lint",
+    "test": "pnpm --filter api test",
+    "typecheck": "pnpm --filter web typecheck && pnpm --filter api typecheck",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3"
+  }
+}
