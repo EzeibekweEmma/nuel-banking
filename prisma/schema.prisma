@@ -24,10 +24,11 @@ enum AccountStatus {
 }
 
 enum TransactionStatus {
-  PENDING_VERIFICATION
+  PENDING
   COMPLETED
   HELD
   REJECTED
+  FAILED
 }
 
 enum FraudRiskLevel {
@@ -52,6 +53,8 @@ enum AuditAction {
   LOGIN_SUCCEEDED
   LOGIN_FAILED
   TRANSFER_CREATED
+  TRANSFER_COMPLETED
+  TRANSFER_FAILED
   TRANSACTION_APPROVED
   TRANSACTION_REJECTED
   FRAUD_ALERT_GENERATED
@@ -116,7 +119,7 @@ model Transaction {
   amount            Decimal            @db.Decimal(18, 2)
   reference         String             @unique
   description       String?
-  status            TransactionStatus  @default(PENDING_VERIFICATION)
+  status            TransactionStatus  @default(PENDING)
   createdAt         DateTime           @default(now())
   completedAt       DateTime?
   reviewedAt        DateTime?
