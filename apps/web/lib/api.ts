@@ -51,4 +51,5 @@ export const api = {
   adminAuditLogs: (page = 1) => request<PageResult<AuditLog>>(`/admin/audit-logs?page=${page}`),
   approveHeldTransaction: (id: string) => request<AdminTransaction>(`/admin/transactions/${id}/approve`, { method: 'POST' }),
   rejectHeldTransaction: (id: string) => request<AdminTransaction>(`/admin/transactions/${id}/reject`, { method: 'POST' }),
+  chat: (message: string, conversationId?: string) => request<{ conversationId: string; response: string }>('/chatbot/messages', { method: 'POST', body: JSON.stringify({ message, conversationId }) }),
 };

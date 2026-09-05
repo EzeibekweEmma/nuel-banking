@@ -4,6 +4,7 @@ import { FRAUD_THRESHOLDS, FRAUD_WEIGHTS, FraudContext, FraudResult, FraudTransa
 
 @Injectable()
 export class FraudService {
+  describeAssessment(assessment: { riskLevel: string; reasons: string[] } | null | undefined): string { return assessment ? `${assessment.riskLevel}${assessment.reasons.length ? ` (${assessment.reasons.join(', ')})` : ''}` : 'not assessed'; }
   async assess(tx: FraudTransactionClient, userId: string, sourceAccountId: string, amount: number, context: FraudContext): Promise<FraudResult> {
     let score = 0;
     const reasons: string[] = [];
