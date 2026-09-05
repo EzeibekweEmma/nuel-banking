@@ -1,6 +1,6 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class SendMessageDto {
-  @IsString() @MaxLength(2000) message!: string;
+  @IsString() @MinLength(1) @MaxLength(2000) message!: string;
   @IsOptional() @IsString() conversationId?: string;
 }

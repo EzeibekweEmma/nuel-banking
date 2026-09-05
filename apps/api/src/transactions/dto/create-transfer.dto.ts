@@ -1,8 +1,9 @@
-import { IsOptional, IsString, Length, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class CreateTransferDto {
   @IsString()
   @Length(10, 10)
+  @Matches(/^\d{10}$/)
   destinationAccountNumber!: string;
 
   @IsString()

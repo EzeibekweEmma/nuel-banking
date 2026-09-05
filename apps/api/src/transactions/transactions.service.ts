@@ -31,6 +31,7 @@ export class TransactionsService {
         if (fraud.decision === FraudDecision.HOLD) {
           const held = await tx.transaction.update({ where: { id: transaction.id }, data: { status: TransactionStatus.HELD } });
           await tx.notification.createMany({ data: [{ userId: senderId, type: 'FRAUD_ALERT', title: 'Fraud warning', message: 'Unusual activity was detected on your transfer.' }, { userId: senderId, type: 'TRANSACTION_UPDATE', title: 'Transfer held for review', message: 'Your transfer is being reviewed for security.' }] });
+          await tx.auditLog.create({ data: { userId: senderId, action: AuditAction.FRAUD_ALERT_GENERATED, entityType: 'Notification', entityId: transaction.id } });
           await tx.auditLog.create({ data: { userId: senderId, action: AuditAction.TRANSFER_HELD, entityType: 'Transaction', entityId: transaction.id } });
           return held;
         }
