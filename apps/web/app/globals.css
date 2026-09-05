@@ -6,6 +6,12 @@
 
 body {
   min-height: 100vh;
-  background: #f8fafc;
+  background: #f6f8fc;
   color: #0f172a;
 }
+
+button, input { font: inherit; }
+
+button { cursor: pointer; }
+
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid rgb(59 130 246 / 0.35); outline-offset: 2px; }

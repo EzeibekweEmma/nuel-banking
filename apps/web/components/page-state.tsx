@@ -1,3 +1,3 @@
-export function LoadingState() { return <p className="animate-pulse text-sm text-slate-500">Loading your information…</p>; }
-export function EmptyState({ message }: { message: string }) { return <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">{message}</div>; }
-export function ErrorState({ message }: { message: string }) { return <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{message}</div>; }
+export function LoadingState() { return <div className="flex min-h-40 items-center justify-center rounded-2xl bg-white p-8 text-sm font-medium text-slate-500 shadow-sm ring-1 ring-slate-200"><span className="mr-3 h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-700" />Loading your information…</div>; }
+export function EmptyState({ message }: { message: string }) { return <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">{message}</div>; }
+export function ErrorState({ message }: { message: string }) { return <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">{message}</div>; }
