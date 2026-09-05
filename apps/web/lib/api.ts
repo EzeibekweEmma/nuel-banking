@@ -4,11 +4,15 @@ const REFRESH_TOKEN_KEY = 'banking_refresh_token';
 
 export class ApiError extends Error { constructor(message: string, readonly status: number) { super(message); } }
 export interface AuthTokens { accessToken: string; refreshToken: string; }
-export interface User { id: string; email: string; firstName: string; lastName: string; role: 'CUSTOMER' | 'ADMIN'; }
+export interface User { id: string; email: string; firstName: string; lastName: string; role: 'CUSTOMER' | 'ADMIN'; createdAt?: string; }
 export interface Account { id: string; accountNumber: string; type: string; balance: string; currency: string; status: string; createdAt: string; user: { firstName: string; lastName: string }; }
 export interface Transaction { id: string; amount: string; reference: string; description: string | null; status: string; createdAt: string; completedAt: string | null; destinationAccount?: { accountNumber: string }; fraudAssessment?: { riskScore: number; riskLevel: string; decision: string; reasons: string[] }; }
 export interface Beneficiary { id: string; nickname: string; createdAt: string; account: { accountNumber: string; currency: string }; }
 export interface Notification { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; }
+export interface PageResult<T> { data: T[]; total: number; page: number; limit: number; }
+export interface AdminTransaction extends Transaction { sourceAccount: { accountNumber: string; user?: { firstName: string; lastName: string } }; destinationAccount: { accountNumber: string; user?: { firstName: string; lastName: string } }; }
+export interface FraudAssessment { id: string; riskScore: number; riskLevel: string; decision: string; reasons: string[]; createdAt: string; transaction: { id: string; reference: string; status: string; amount: string; createdAt: string; sourceAccount: { accountNumber: string; user: { firstName: string; lastName: string } }; destinationAccount: { accountNumber: string; user: { firstName: string; lastName: string } } }; }
+export interface AuditLog { id: string; action: string; entityType: string; entityId: string | null; createdAt: string; user: { email: string } | null; }
 
 function getTokens(): AuthTokens | null { if (typeof window === 'undefined') return null; const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY); const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY); return accessToken && refreshToken ? { accessToken, refreshToken } : null; }
 export function saveTokens(tokens: AuthTokens): void { localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken); localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken); }
@@ -40,4 +44,11 @@ export const api = {
   transfer: (data: { destinationAccountNumber: string; amount: string; description?: string }, idempotencyKey: string) => request<Transaction>('/transactions/transfer', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(data) }),
   beneficiaries: () => request<Beneficiary[]>('/beneficiaries'), addBeneficiary: (data: { accountNumber: string; nickname: string }) => request<Beneficiary>('/beneficiaries', { method: 'POST', body: JSON.stringify(data) }), removeBeneficiary: (id: string) => request<void>(`/beneficiaries/${id}`, { method: 'DELETE' }),
   notifications: () => request<Notification[]>('/notifications'), markNotificationRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
+  adminCustomers: (page = 1) => request<PageResult<User>>(`/admin/customers?page=${page}`),
+  adminTransactions: (page = 1, status?: string) => request<PageResult<AdminTransaction>>(`/admin/transactions?page=${page}${status ? `&status=${status}` : ''}`),
+  adminHeldTransactions: (page = 1) => request<PageResult<AdminTransaction>>(`/admin/transactions/held?page=${page}`),
+  adminAssessments: (page = 1) => request<PageResult<FraudAssessment>>(`/admin/fraud-assessments?page=${page}`),
+  adminAuditLogs: (page = 1) => request<PageResult<AuditLog>>(`/admin/audit-logs?page=${page}`),
+  approveHeldTransaction: (id: string) => request<AdminTransaction>(`/admin/transactions/${id}/approve`, { method: 'POST' }),
+  rejectHeldTransaction: (id: string) => request<AdminTransaction>(`/admin/transactions/${id}/reject`, { method: 'POST' }),
 };
