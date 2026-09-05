@@ -1,0 +1,2 @@
+import { AuthForm } from '../../components/auth-form';
+export default function LoginPage() { return <main className="mx-auto grid min-h-screen max-w-5xl items-center gap-10 px-6 py-12 md:grid-cols-2"><section><p className="font-semibold text-blue-700">ASTRA BANK</p><h1 className="mt-3 text-4xl font-bold text-slate-950">Bank with confidence.</h1><p className="mt-4 text-slate-600">Secure transfers, fraud protection, and customer support in one place.</p></section><AuthForm mode="login" /></main>; }
