@@ -1,8 +1,9 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { User, UserRole } from '@prisma/client';
+import { AccountType, User, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from './auth-user.interface';
 import { LoginDto } from './dto/login.dto';
@@ -19,7 +20,7 @@ export class AuthService {
     const email = dto.email.toLowerCase();
     if (await this.prisma.user.findUnique({ where: { email } })) throw new ConflictException('Email address is already registered');
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    const user = await this.prisma.user.create({ data: { email, passwordHash, firstName: dto.firstName, lastName: dto.lastName } });
+    const user = await this.prisma.user.create({ data: { email, passwordHash, firstName: dto.firstName, lastName: dto.lastName, accounts: { create: { accountNumber: this.createAccountNumber(), type: AccountType.SAVINGS } } } });
     return this.issueTokens(user);
   }
 
@@ -67,5 +68,9 @@ export class AuthService {
     const tokens = await this.prisma.refreshToken.findMany({ where: { userId, expiresAt: { gt: new Date() } } });
     for (const token of tokens) if (await bcrypt.compare(rawToken, token.tokenHash)) return token;
     return null;
+  }
+
+  private createAccountNumber(): string {
+    return randomInt(1_000_000_000, 10_000_000_000).toString();
   }
 }

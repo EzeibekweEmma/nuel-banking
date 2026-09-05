@@ -12,6 +12,17 @@ enum UserRole {
   ADMIN
 }
 
+enum AccountType {
+  SAVINGS
+  CURRENT
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
 enum TransactionStatus {
   PENDING_VERIFICATION
   COMPLETED
@@ -68,11 +79,12 @@ model User {
 
 model Account {
   id                   String        @id @default(cuid())
-  userId               String
+  userId               String        @unique
   accountNumber        String        @unique
+  type                 AccountType   @default(SAVINGS)
   balance              Decimal       @db.Decimal(18, 2) @default(0)
   currency             String        @default("NGN")
-  isActive             Boolean       @default(true)
+  status               AccountStatus @default(ACTIVE)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
   user                 User          @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -80,7 +92,6 @@ model Account {
   receivedTransactions Transaction[] @relation("DestinationAccountTransactions")
   beneficiaries        Beneficiary[] @relation("BeneficiaryAccounts")
 
-  @@index([userId])
 }
 
 model Beneficiary {
