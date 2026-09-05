@@ -118,6 +118,7 @@ model Transaction {
   beneficiaryId     String?
   amount            Decimal            @db.Decimal(18, 2)
   reference         String             @unique
+  idempotencyKey    String
   description       String?
   status            TransactionStatus  @default(PENDING)
   createdAt         DateTime           @default(now())
@@ -133,6 +134,7 @@ model Transaction {
   @@index([sourceAccountId, createdAt])
   @@index([destinationAccountId, createdAt])
   @@index([status])
+  @@unique([sourceAccountId, idempotencyKey])
 }
 
 model FraudAssessment {
