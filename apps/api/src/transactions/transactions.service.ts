@@ -60,6 +60,7 @@ export class TransactionsService {
       if (!transaction) throw new NotFoundException('Transaction not found');
       await this.completeTransfer(tx, transaction.id, transaction.sourceAccountId, transaction.destinationAccountId, transaction.amount, adminId);
       const completed = await tx.transaction.update({ where: { id: transaction.id }, data: { reviewedAt: new Date(), reviewedById: adminId } });
+      await tx.auditLog.create({ data: { userId: adminId, action: AuditAction.TRANSACTION_APPROVED, entityType: 'Transaction', entityId: transactionId } });
       await tx.auditLog.create({ data: { userId: adminId, action: AuditAction.ADMIN_REVIEW_PERFORMED, entityType: 'Transaction', entityId: transactionId, metadata: { decision: 'APPROVED' } } });
       await tx.notification.create({ data: { userId: transaction.sourceAccount.userId, type: 'TRANSACTION_UPDATE', title: 'Transfer approved', message: 'Your held transfer has been approved and completed.' } });
       return completed;
@@ -71,6 +72,7 @@ export class TransactionsService {
       const transaction = await tx.transaction.findFirst({ where: { id: transactionId, status: TransactionStatus.HELD }, include: { sourceAccount: { select: { userId: true } } } });
       if (!transaction) throw new BadRequestException('Held transaction has already been processed');
       const rejected = await tx.transaction.update({ where: { id: transactionId }, data: { status: TransactionStatus.REJECTED, reviewedAt: new Date(), reviewedById: adminId } });
+      await tx.auditLog.create({ data: { userId: adminId, action: AuditAction.TRANSACTION_REJECTED, entityType: 'Transaction', entityId: transactionId } });
       await tx.auditLog.create({ data: { userId: adminId, action: AuditAction.ADMIN_REVIEW_PERFORMED, entityType: 'Transaction', entityId: transactionId, metadata: { decision: 'REJECTED' } } });
       await tx.notification.create({ data: { userId: transaction.sourceAccount.userId, type: 'TRANSACTION_UPDATE', title: 'Transfer rejected', message: 'Your held transfer was rejected after security review.' } });
       return rejected;

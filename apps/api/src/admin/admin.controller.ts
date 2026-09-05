@@ -1,15 +1,11 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { Controller, Get, Param, Post } from '@nestjs/common';
+import { AdminOnly } from '../auth/admin-only.decorator';
 import { AuthUser } from '../auth/auth-user.interface';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
 import { TransactionsService } from '../transactions/transactions.service';
 import { AdminService } from './admin.service';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@AdminOnly()
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService, private readonly transactionsService: TransactionsService) {}
