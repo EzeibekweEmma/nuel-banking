@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { AccountStatus, AuditAction, FraudDecision, Prisma, TransactionStatus } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { FraudContext, FraudTransactionClient } from '../fraud/fraud.types';
 import { FraudService } from '../fraud/fraud.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,16 +12,17 @@ export class TransactionsService {
 
   async transfer(senderId: string, idempotencyKey: string, dto: CreateTransferDto, context: FraudContext = {}) {
     const amount = this.toAmount(dto.amount);
+    const requestHash = this.createRequestHash(dto);
     try {
       return await this.prisma.$transaction(async (tx) => {
         const sender = await tx.account.findUnique({ where: { userId: senderId } });
         if (!sender || sender.status !== AccountStatus.ACTIVE) throw new BadRequestException('Sender account is unavailable');
         const existing = await tx.transaction.findUnique({ where: { sourceAccountId_idempotencyKey: { sourceAccountId: sender.id, idempotencyKey } } });
-        if (existing) return existing;
+        if (existing) return this.validateIdempotentRequest(existing.requestHash, requestHash, existing);
         const recipient = await tx.account.findUnique({ where: { accountNumber: dto.destinationAccountNumber } });
         if (!recipient || recipient.status !== AccountStatus.ACTIVE) throw new NotFoundException('Destination account not found');
         if (sender.id === recipient.id || sender.currency !== recipient.currency) throw new BadRequestException('Invalid destination account');
-        const transaction = await tx.transaction.create({ data: { sourceAccountId: sender.id, destinationAccountId: recipient.id, idempotencyKey, amount, reference: randomUUID(), description: dto.description, status: TransactionStatus.PENDING } });
+        const transaction = await tx.transaction.create({ data: { sourceAccountId: sender.id, destinationAccountId: recipient.id, idempotencyKey, requestHash, amount, reference: randomUUID(), description: dto.description, status: TransactionStatus.PENDING } });
         const fraud = await this.fraudService.assess(tx, senderId, sender.id, amount.toNumber(), context);
         await tx.fraudAssessment.create({ data: { transactionId: transaction.id, ...fraud } });
         await this.recordDevice(tx, senderId, context);
@@ -37,7 +38,7 @@ export class TransactionsService {
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const existing = await this.prisma.transaction.findFirst({ where: { sourceAccount: { userId: senderId }, idempotencyKey } });
-        if (existing) return existing;
+        if (existing) return this.validateIdempotentRequest(existing.requestHash, requestHash, existing);
       }
       await this.prisma.auditLog.create({ data: { userId: senderId, action: AuditAction.TRANSFER_FAILED, entityType: 'Transaction', metadata: { destinationAccountNumber: dto.destinationAccountNumber } } });
       throw error;
@@ -93,4 +94,6 @@ export class TransactionsService {
 
   private async recordDevice(tx: FraudTransactionClient, userId: string, context: FraudContext) { if (context.deviceFingerprint) await tx.device.upsert({ where: { userId_fingerprint: { userId, fingerprint: context.deviceFingerprint } }, create: { userId, fingerprint: context.deviceFingerprint, lastLocation: context.location }, update: { lastLocation: context.location, lastSeenAt: new Date() } }); }
   private toAmount(value: string): Prisma.Decimal { if (!/^\d+(\.\d{1,2})?$/.test(value)) throw new BadRequestException('Amount must be a positive value with up to two decimal places'); const amount = new Prisma.Decimal(value); if (amount.lte(0)) throw new BadRequestException('Amount must be greater than zero'); return amount; }
+  private createRequestHash(dto: CreateTransferDto): string { return createHash('sha256').update(JSON.stringify({ amount: dto.amount, destinationAccountNumber: dto.destinationAccountNumber, description: dto.description ?? null })).digest('hex'); }
+  private validateIdempotentRequest<T extends { requestHash: string | null }>(storedHash: string | null, requestHash: string, transaction: T): T { if (storedHash !== requestHash) throw new ConflictException('Idempotency-Key has already been used with different transfer details'); return transaction; }
 }

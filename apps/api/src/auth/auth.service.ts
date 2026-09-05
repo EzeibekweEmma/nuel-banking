@@ -26,7 +26,11 @@ export class AuthService {
 
   async login(dto: LoginDto): Promise<AuthTokens> {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
-    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) throw new UnauthorizedException('Invalid email or password');
+    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+      await this.prisma.auditLog.create({ data: { action: 'LOGIN_FAILED', entityType: 'User', metadata: { email: dto.email.toLowerCase() } } });
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    await this.prisma.auditLog.create({ data: { userId: user.id, action: 'LOGIN_SUCCEEDED', entityType: 'User', entityId: user.id } });
     return this.issueTokens(user);
   }
 

@@ -119,6 +119,7 @@ model Transaction {
   amount            Decimal            @db.Decimal(18, 2)
   reference         String             @unique
   idempotencyKey    String
+  requestHash       String?
   description       String?
   status            TransactionStatus  @default(PENDING)
   createdAt         DateTime           @default(now())
