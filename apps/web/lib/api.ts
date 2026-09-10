@@ -4,6 +4,7 @@ const REFRESH_TOKEN_KEY = 'banking_refresh_token';
 
 export class ApiError extends Error { constructor(message: string, readonly status: number) { super(message); } }
 export interface AuthTokens { accessToken: string; refreshToken: string; }
+export interface PasswordResetRequest { message: string; resetUrl?: string; }
 export interface User { id: string; email: string; firstName: string; lastName: string; role: 'CUSTOMER' | 'ADMIN'; createdAt?: string; }
 export interface Account { id: string; accountNumber: string; type: string; balance: string; currency: string; status: string; createdAt: string; user: { firstName: string; lastName: string }; }
 export interface Recipient { accountNumber: string; currency: string; firstName: string; lastName: string; }
@@ -39,6 +40,8 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
 export const api = {
   login: (email: string, password: string) => request<AuthTokens>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   register: (data: { email: string; firstName: string; lastName: string; password: string }) => request<AuthTokens>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+  forgotPassword: (email: string) => request<PasswordResetRequest>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, password: string) => request<{ message: string }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
   logout: () => { const refreshToken = getTokens()?.refreshToken; return refreshToken ? request<void>('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }) : Promise.resolve(); },
   me: () => request<User>('/auth/me'), account: () => request<Account>('/accounts/me'), balance: () => request<{ balance: string; currency: string }>('/accounts/me/balance'),
   lookupRecipient: (accountNumber: string) => request<Recipient>(`/accounts/lookup/${accountNumber}`),

@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Icon } from './icons';
 
-export function AuthShell({ children, mode }: { children: ReactNode; mode: 'login' | 'register' }) {
+export function AuthShell({ children, mode, eyebrow, title, description }: { children: ReactNode; mode: 'login' | 'register' | 'recovery'; eyebrow?: string; title?: string; description?: string }) {
   return (
     <main className="min-h-screen bg-[#edf2ef] p-3 sm:p-5">
       <div className="mx-auto grid min-h-[calc(100vh-24px)] max-w-[1180px] overflow-hidden rounded-[28px] bg-white shadow-[0_32px_80px_-55px_rgba(8,52,41,.65)] sm:min-h-[calc(100vh-40px)] lg:grid-cols-[1.05fr_.95fr]">
@@ -11,7 +11,7 @@ export function AuthShell({ children, mode }: { children: ReactNode; mode: 'logi
           <div className="relative flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#d8f85c] text-base font-black text-[#092d24]">A</span><span className="text-lg font-bold tracking-tight">Astra Bank</span></div>
           <div className="relative my-auto max-w-lg">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#d8f85c]">Banking made human</p>
-            <h1 className="mt-5 text-5xl font-bold leading-[1.08] tracking-[-0.045em]">{mode === 'login' ? 'Your money, clear and secure.' : 'A better way to manage your money.'}</h1>
+            <h1 className="mt-5 text-5xl font-bold leading-[1.08] tracking-[-0.045em]">{mode === 'login' ? 'Your money, clear and secure.' : mode === 'register' ? 'A better way to manage your money.' : 'Secure recovery, without the worry.'}</h1>
             <p className="mt-5 max-w-md text-sm leading-7 text-[#afc7c0]">Move money confidently, stay ahead of every transaction, and get helpful answers whenever you need them.</p>
             <div className="mt-10 grid grid-cols-2 gap-3">
               <Feature icon="shield" title="Protected 24/7" copy="Real-time fraud checks" />
@@ -23,9 +23,9 @@ export function AuthShell({ children, mode }: { children: ReactNode; mode: 'logi
         <section className="flex items-center justify-center px-6 py-10 sm:px-12 lg:px-16">
           <div className="w-full max-w-md">
             <div className="mb-10 flex items-center gap-3 lg:hidden"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#d8f85c] text-sm font-black text-[#092d24]">A</span><span className="font-bold text-[#18352e]">Astra Bank</span></div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#087a5b]">{mode === 'login' ? 'Welcome back' : 'Join Astra'}</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[#18352e]">{mode === 'login' ? 'Sign in to your account' : 'Open your account'}</h2>
-            <p className="mt-2 text-sm leading-6 text-[#768681]">{mode === 'login' ? 'Enter your details to continue to secure banking.' : 'It only takes a minute to get started.'}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#087a5b]">{eyebrow ?? (mode === 'login' ? 'Welcome back' : mode === 'register' ? 'Join Astra' : 'Account recovery')}</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[#18352e]">{title ?? (mode === 'login' ? 'Sign in to your account' : mode === 'register' ? 'Open your account' : 'Reset your password')}</h2>
+            <p className="mt-2 text-sm leading-6 text-[#768681]">{description ?? (mode === 'login' ? 'Enter your details to continue to secure banking.' : mode === 'register' ? 'It only takes a minute to get started.' : 'Follow the secure steps below to regain access.')}</p>
             {children}
             <div className="mt-8 flex items-center justify-center gap-2 border-t border-[#e7ece9] pt-6 text-[10px] text-[#84928e]"><Icon name="shield" className="h-3.5 w-3.5 text-[#087a5b]" />Your connection is encrypted and secure</div>
           </div>

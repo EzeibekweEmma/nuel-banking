@@ -38,7 +38,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       {mode === 'register' && <div className="grid grid-cols-2 gap-3"><Input name="firstName" label="First name" autoComplete="given-name" /><Input name="lastName" label="Last name" autoComplete="family-name" /></div>}
       <Input name="email" label="Email address" type="email" autoComplete="email" />
       <label className="block text-xs font-bold text-[#39574f]">
-        <span className="flex items-center justify-between"><span>Password</span>{mode === 'login' && <span className="font-medium text-[#879590]">12+ characters</span>}</span>
+        <span className="flex items-center justify-between"><span>Password</span>{mode === 'login' && <Link href="/forgot-password" className="font-bold text-[#087a5b] hover:underline">Forgot password?</Link>}</span>
         <span className="relative mt-2 block">
           <input required name="password" type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="h-12 w-full rounded-xl border border-[#ccd8d3] bg-[#fbfcfb] px-4 pr-12 text-sm font-normal text-[#18352e] outline-none transition focus:border-[#087a5b] focus:bg-white" />
           <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((current) => !current)} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-[#80908b] hover:bg-[#edf3f0]"><Icon name={showPassword ? 'eye-off' : 'eye'} className="h-4 w-4" /></button>
