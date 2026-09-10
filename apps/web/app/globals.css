@@ -2,16 +2,38 @@
 
 :root {
   color-scheme: light;
+  --ink: #10231f;
+  --muted: #63736f;
+  --brand: #087a5b;
+  --brand-dark: #075642;
+  --canvas: #f3f6f4;
 }
 
 body {
   min-height: 100vh;
-  background: #f6f8fc;
-  color: #0f172a;
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-button, input { font: inherit; }
+button, input, textarea, select { font: inherit; }
 
 button { cursor: pointer; }
 
-button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid rgb(59 130 246 / 0.35); outline-offset: 2px; }
+button:disabled { cursor: not-allowed; }
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid rgb(8 122 91 / 0.22);
+  outline-offset: 2px;
+}
+
+::selection { background: rgb(8 122 91 / 0.18); }
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter { animation: enter 300ms ease-out both; }

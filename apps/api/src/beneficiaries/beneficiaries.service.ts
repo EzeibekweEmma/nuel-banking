@@ -12,10 +12,10 @@ export class BeneficiariesService {
     if (account.userId === userId) throw new ConflictException('You cannot add your own account as a beneficiary');
     const existing = await this.prisma.beneficiary.findUnique({ where: { userId_accountId: { userId, accountId: account.id } } });
     if (existing) throw new ConflictException('Beneficiary already exists');
-    return this.prisma.beneficiary.create({ data: { userId, accountId: account.id, nickname: dto.nickname } });
+    return this.prisma.beneficiary.create({ data: { userId, accountId: account.id, nickname: dto.nickname }, include: { account: { select: { accountNumber: true, currency: true, user: { select: { firstName: true, lastName: true } } } } } });
   }
 
-  list(userId: string) { return this.prisma.beneficiary.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, include: { account: { select: { accountNumber: true, currency: true } } } }); }
+  list(userId: string) { return this.prisma.beneficiary.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, include: { account: { select: { accountNumber: true, currency: true, user: { select: { firstName: true, lastName: true } } } } } }); }
 
   async remove(userId: string, beneficiaryId: string): Promise<void> {
     const result = await this.prisma.beneficiary.deleteMany({ where: { id: beneficiaryId, userId } });

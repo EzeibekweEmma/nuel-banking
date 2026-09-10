@@ -83,8 +83,8 @@ export class TransactionsService {
     });
   }
 
-  list(senderId: string) { return this.prisma.transaction.findMany({ where: { sourceAccount: { userId: senderId } }, orderBy: { createdAt: 'desc' }, include: { destinationAccount: { select: { accountNumber: true } }, fraudAssessment: true } }); }
-  async getDetail(senderId: string, transactionId: string) { const transaction = await this.prisma.transaction.findFirst({ where: { id: transactionId, sourceAccount: { userId: senderId } }, include: { fraudAssessment: true } }); if (!transaction) throw new NotFoundException('Transaction not found'); return transaction; }
+  list(senderId: string) { return this.prisma.transaction.findMany({ where: { sourceAccount: { userId: senderId } }, orderBy: { createdAt: 'desc' }, include: { destinationAccount: { select: { accountNumber: true, user: { select: { firstName: true, lastName: true } } } }, fraudAssessment: true } }); }
+  async getDetail(senderId: string, transactionId: string) { const transaction = await this.prisma.transaction.findFirst({ where: { id: transactionId, sourceAccount: { userId: senderId } }, include: { destinationAccount: { select: { accountNumber: true, user: { select: { firstName: true, lastName: true } } } }, fraudAssessment: true } }); if (!transaction) throw new NotFoundException('Transaction not found'); return transaction; }
 
   private async completeTransfer(tx: FraudTransactionClient, transactionId: string, sourceAccountId: string, destinationAccountId: string, amount: Prisma.Decimal, auditUserId: string, notifyUserId: string) {
     const debit = await tx.account.updateMany({ where: { id: sourceAccountId, status: AccountStatus.ACTIVE, balance: { gte: amount } }, data: { balance: { decrement: amount } } });
