@@ -4,6 +4,12 @@ import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 
+interface AuthServiceEmailInternals {
+  deliverPasswordResetEmail(email: string, firstName: string, resetUrl: string, tokenHash: string): Promise<void>;
+  sendPasswordResetEmail(email: string, firstName: string, resetUrl: string): Promise<boolean>;
+  wait(milliseconds: number): Promise<void>;
+}
+
 describe('AuthService', () => {
   const user = { id: 'user-1', email: 'customer@example.com', passwordHash: '$2b$12$EjcW2b8l5RlXKiYgwsnC6e9RV26mR2HcB3XFZ8ILjXKGE2KLe3Ceq', firstName: 'Ada', lastName: 'Okafor', role: UserRole.CUSTOMER, createdAt: new Date(), updatedAt: new Date() };
   const prisma = {
@@ -17,8 +23,10 @@ describe('AuthService', () => {
   const jwt = { signAsync: jest.fn(), verifyAsync: jest.fn() };
   const config = { getOrThrow: jest.fn().mockReturnValue('test-secret'), get: jest.fn() };
   const service = new AuthService(prismaClient as never, jwt as never as JwtService, config as never as ConfigService);
+  const emailInternals = service as unknown as AuthServiceEmailInternals;
 
   beforeEach(() => jest.clearAllMocks());
+  afterEach(() => jest.restoreAllMocks());
 
   it('registers a customer with a hashed password and token pair', async () => {
     prisma.user.findUnique.mockResolvedValue(null); prisma.user.create.mockResolvedValue(user); jwt.signAsync.mockResolvedValueOnce('access').mockResolvedValueOnce('refresh'); prisma.refreshToken.create.mockResolvedValue({});
@@ -43,7 +51,7 @@ describe('AuthService', () => {
   });
 
   it('creates a hashed, short-lived recovery token without exposing account existence', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: user.id, email: user.email });
+    prisma.user.findUnique.mockResolvedValue({ id: user.id, email: user.email, firstName: user.firstName });
     prisma.passwordResetToken.create.mockResolvedValue({});
     prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
     prisma.auditLog.create.mockResolvedValue({});
@@ -57,6 +65,41 @@ describe('AuthService', () => {
     const rawToken = new URL(result.resetUrl as string).searchParams.get('token');
     expect(storedHash).toHaveLength(64);
     expect(storedHash).not.toBe(rawToken);
+  });
+
+  it('returns the forgot-password response without waiting for email delivery', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: user.id, email: user.email, firstName: user.firstName });
+    prisma.passwordResetToken.create.mockResolvedValue({});
+    prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
+    prisma.auditLog.create.mockResolvedValue({});
+    config.get.mockImplementation((key: string) => ({
+      FRONTEND_URL: 'http://localhost:3000',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_USER: 'mailer@example.com',
+      SMTP_PASSWORD: 'password',
+      EMAIL_FROM: 'Nuel Bank <mailer@example.com>',
+    })[key]);
+    jest.spyOn(emailInternals, 'deliverPasswordResetEmail').mockReturnValue(new Promise<void>(() => undefined));
+
+    await expect(service.requestPasswordReset(user.email)).resolves.toEqual(expect.objectContaining({ message: expect.any(String) }));
+    expect(emailInternals.deliverPasswordResetEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries password reset email delivery up to three times', async () => {
+    prisma.passwordResetToken.findUnique.mockResolvedValue({ id: 'reset-1' });
+    jest.spyOn(emailInternals, 'wait').mockResolvedValue();
+    jest.spyOn(emailInternals, 'sendPasswordResetEmail')
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+
+    await emailInternals.deliverPasswordResetEmail(user.email, user.firstName, 'http://localhost/reset', 'token-hash');
+
+    expect(emailInternals.sendPasswordResetEmail).toHaveBeenCalledTimes(4);
+    expect(emailInternals.wait).toHaveBeenNthCalledWith(1, 1_000);
+    expect(emailInternals.wait).toHaveBeenNthCalledWith(2, 3_000);
+    expect(emailInternals.wait).toHaveBeenNthCalledWith(3, 9_000);
   });
 
   it('resets the password, consumes recovery tokens, and revokes active sessions', async () => {

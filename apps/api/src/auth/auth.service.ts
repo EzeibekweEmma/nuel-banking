@@ -31,6 +31,9 @@ export interface PasswordResetRequestResult {
   resetUrl?: string;
 }
 
+const PASSWORD_RESET_EMAIL_ATTEMPTS = 4;
+const PASSWORD_RESET_EMAIL_RETRY_DELAYS_MS = [1_000, 3_000, 9_000];
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -153,13 +156,14 @@ export class AuthService {
     ).replace(/\/$/, "");
     const resetUrl =
       frontendUrl + "/reset-password?token=" + encodeURIComponent(token);
-    const delivered = await this.sendPasswordResetEmail(
+    this.queuePasswordResetEmail(
       user.email,
       user.firstName,
       resetUrl,
+      tokenHash,
     );
 
-    return process.env.NODE_ENV !== "production" && !delivered
+    return process.env.NODE_ENV !== "production"
       ? { message, resetUrl }
       : { message };
   }
@@ -263,6 +267,75 @@ export class AuthService {
     return createHash("sha256").update(token).digest("hex");
   }
 
+  private queuePasswordResetEmail(
+    email: string,
+    firstName: string,
+    resetUrl: string,
+    tokenHash: string,
+  ): void {
+    if (!this.hasSmtpConfiguration()) {
+      this.logger.warn(
+        "Password reset email was not queued because SMTP is not configured.",
+      );
+      return;
+    }
+
+    void this.deliverPasswordResetEmail(
+      email,
+      firstName,
+      resetUrl,
+      tokenHash,
+    ).catch(() => {
+      this.logger.error("Background password reset email delivery failed.");
+    });
+  }
+
+  private hasSmtpConfiguration(): boolean {
+    const host = this.config.get<string>("SMTP_HOST");
+    const from = this.config.get<string>("EMAIL_FROM");
+    const user = this.config.get<string>("SMTP_USER");
+    const password = this.config.get<string>("SMTP_PASSWORD");
+    return Boolean(host && from && ((!user && !password) || (user && password)));
+  }
+
+  private async deliverPasswordResetEmail(
+    email: string,
+    firstName: string,
+    resetUrl: string,
+    tokenHash: string,
+  ): Promise<void> {
+    for (let attempt = 1; attempt <= PASSWORD_RESET_EMAIL_ATTEMPTS; attempt += 1) {
+      if (attempt > 1) {
+        const activeToken = await this.prisma.passwordResetToken.findUnique({
+          where: { tokenHash },
+          select: { id: true },
+        });
+        if (!activeToken) return;
+      }
+
+      if (await this.sendPasswordResetEmail(email, firstName, resetUrl)) {
+        if (attempt > 1) {
+          this.logger.log(
+            `Password reset email delivered on attempt ${attempt}.`,
+          );
+        }
+        return;
+      }
+
+      if (attempt < PASSWORD_RESET_EMAIL_ATTEMPTS) {
+        await this.wait(PASSWORD_RESET_EMAIL_RETRY_DELAYS_MS[attempt - 1]);
+      }
+    }
+
+    this.logger.error(
+      `Password reset email delivery failed after ${PASSWORD_RESET_EMAIL_ATTEMPTS} attempts.`,
+    );
+  }
+
+  private wait(milliseconds: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
   private async sendPasswordResetEmail(
     email: string,
     firstName: string,
@@ -289,18 +362,19 @@ export class AuthService {
       return false;
     }
 
+    const message = createPasswordResetEmail(firstName, resetUrl);
+    const transport = createTransport({
+      host,
+      port,
+      secure,
+      auth: user && password ? { user, pass: password } : undefined,
+      requireTLS: this.config.get<string>("SMTP_REQUIRE_TLS") === "true",
+      connectionTimeout: 8_000,
+      greetingTimeout: 8_000,
+      socketTimeout: 10_000,
+    });
+
     try {
-      const message = createPasswordResetEmail(firstName, resetUrl);
-      const transport = createTransport({
-        host,
-        port,
-        secure,
-        auth: user && password ? { user, pass: password } : undefined,
-        requireTLS: this.config.get<string>("SMTP_REQUIRE_TLS") === "true",
-        connectionTimeout: 8_000,
-        greetingTimeout: 8_000,
-        socketTimeout: 10_000,
-      });
       await transport.sendMail({
         from,
         to: email,
@@ -309,13 +383,16 @@ export class AuthService {
         text: message.text,
         headers: { "X-Auto-Response-Suppress": "All" },
       });
-      transport.close();
       return true;
-    } catch {
-      this.logger.warn(
-        "Password reset email could not be delivered through SMTP.",
-      );
+    } catch (error: unknown) {
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? String(error.code)
+          : "UNKNOWN";
+      this.logger.warn(`Password reset email delivery attempt failed (${code}).`);
       return false;
+    } finally {
+      transport.close();
     }
   }
 
