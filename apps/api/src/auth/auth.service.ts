@@ -15,6 +15,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AuthUser } from "./auth-user.interface";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
+import { createPasswordResetEmail } from "./password-reset-email";
 
 interface TokenPayload {
   sub: string;
@@ -124,7 +125,7 @@ export class AuthService {
       "If an account matches that email, we have sent password reset instructions.";
     const user = await this.prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
-      select: { id: true, email: true },
+      select: { id: true, email: true, firstName: true },
     });
     if (!user) return { message };
 
@@ -152,7 +153,11 @@ export class AuthService {
     ).replace(/\/$/, "");
     const resetUrl =
       frontendUrl + "/reset-password?token=" + encodeURIComponent(token);
-    const delivered = await this.sendPasswordResetEmail(user.email, resetUrl);
+    const delivered = await this.sendPasswordResetEmail(
+      user.email,
+      user.firstName,
+      resetUrl,
+    );
 
     return process.env.NODE_ENV !== "production" && !delivered
       ? { message, resetUrl }
@@ -260,6 +265,7 @@ export class AuthService {
 
   private async sendPasswordResetEmail(
     email: string,
+    firstName: string,
     resetUrl: string,
   ): Promise<boolean> {
     const host = this.config.get<string>("SMTP_HOST");
@@ -284,6 +290,7 @@ export class AuthService {
     }
 
     try {
+      const message = createPasswordResetEmail(firstName, resetUrl);
       const transport = createTransport({
         host,
         port,
@@ -297,15 +304,10 @@ export class AuthService {
       await transport.sendMail({
         from,
         to: email,
-        subject: "Reset your Nuel Bank password",
-        html:
-          '<div style="font-family:Arial,sans-serif;color:#18352e;line-height:1.6"><h2>Reset your password</h2><p>We received a request to reset your Nuel Bank password.</p><p><a href="' +
-          resetUrl +
-          '" style="display:inline-block;background:#087a5b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700">Reset password</a></p><p>This link expires in 15 minutes. If you did not request this, you can safely ignore this email.</p></div>',
-        text:
-          "Reset your Nuel Bank password using this link: " +
-          resetUrl +
-          ". The link expires in 15 minutes.",
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+        headers: { "X-Auto-Response-Suppress": "All" },
       });
       transport.close();
       return true;
