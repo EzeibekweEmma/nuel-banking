@@ -4,7 +4,8 @@
   "private": true,
   "packageManager": "pnpm@11.20.0",
   "scripts": {
-    "build": "pnpm --filter web build && pnpm --filter api build",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && pnpm --filter web build && pnpm --filter api build",
     "dev": "pnpm --parallel --filter web --filter api dev",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
@@ -13,7 +14,7 @@
     "lint": "pnpm --filter web lint && pnpm --filter api lint",
     "test": "pnpm --filter api test",
     "test:api": "pnpm --filter api test",
-    "typecheck": "pnpm --filter web typecheck && pnpm --filter api typecheck",
+    "typecheck": "prisma generate && pnpm --filter web typecheck && pnpm --filter api typecheck",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:status": "prisma migrate status",

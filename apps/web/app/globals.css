@@ -31,6 +31,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 ::selection { background: rgb(8 122 91 / 0.18); }
 
+/* This composite field uses its rounded parent as the focus indicator. */
+.amount-input:focus,
+.amount-input:focus-visible {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
 @keyframes enter {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
