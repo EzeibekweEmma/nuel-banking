@@ -307,8 +307,15 @@ export const api = {
       headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(data),
     }),
-  verifyTransfer: (id: string) =>
-    request<Transaction>(`/transactions/${id}/verify`, { method: "POST" }),
+  verifyTransfer: (id: string, code: string) =>
+    request<Transaction>(`/transactions/${id}/verify`, {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
+  resendTransferVerificationCode: (id: string) =>
+    request<{ message: string }>(`/transactions/${id}/verification-code`, {
+      method: "POST",
+    }),
   beneficiaries: () => request<Beneficiary[]>("/beneficiaries"),
   addBeneficiary: (data: { accountNumber: string; nickname: string }) =>
     request<Beneficiary>("/beneficiaries", {

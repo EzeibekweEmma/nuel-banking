@@ -25,6 +25,8 @@ export default function TransferPage() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [result, setResult] = useState<Transaction | null>(null);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationNotice, setVerificationNotice] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -120,17 +122,46 @@ export default function TransferPage() {
     }
   }
 
-  async function verifyTransfer(): Promise<void> {
+  async function verifyTransfer(
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event.preventDefault();
     if (!result) return;
+    if (!/^\d{6}$/.test(verificationCode)) {
+      setError("Enter the 6-digit code sent to your email.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      setResult(await api.verifyTransfer(result.id));
+      setResult(await api.verifyTransfer(result.id, verificationCode));
+      setVerificationCode("");
+      setVerificationNotice("");
     } catch (reason) {
       setError(
         reason instanceof ApiError
           ? reason.message
           : "Verification could not be completed.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resendVerificationCode(): Promise<void> {
+    if (!result) return;
+    setLoading(true);
+    setError("");
+    setVerificationNotice("");
+    try {
+      const response = await api.resendTransferVerificationCode(result.id);
+      setVerificationCode("");
+      setVerificationNotice(response.message);
+    } catch (reason) {
+      setError(
+        reason instanceof ApiError
+          ? reason.message
+          : "We could not send another verification code.",
       );
     } finally {
       setLoading(false);
@@ -144,6 +175,8 @@ export default function TransferPage() {
     setAmount("");
     setDescription("");
     setResult(null);
+    setVerificationCode("");
+    setVerificationNotice("");
     setError("");
     void api.account().then(setAccount);
   }
@@ -463,7 +496,7 @@ export default function TransferPage() {
                     recipient?.lastName
                   : result.status === "HELD"
                     ? "We’ll notify you when the review is complete."
-                    : "Confirm this transfer to finish sending."}
+                    : "Enter the one-time code sent to your registered email."}
               </p>
               <dl className="mx-auto mt-7 max-w-sm rounded-2xl bg-[#f4f7f5] p-4 text-left">
                 <ReviewRow
@@ -478,13 +511,55 @@ export default function TransferPage() {
                 </div>
               )}
               {result.status === "PENDING" && (
-                <button
-                  disabled={loading}
-                  onClick={() => void verifyTransfer()}
-                  className="mt-6 h-12 w-full max-w-sm rounded-xl bg-[#087a5b] text-sm font-bold text-white disabled:opacity-60"
+                <form
+                  onSubmit={verifyTransfer}
+                  className="mx-auto mt-6 max-w-sm text-left"
                 >
-                  {loading ? "Confirming…" : "Confirm transfer"}
-                </button>
+                  <label
+                    htmlFor="verificationCode"
+                    className="text-xs font-bold text-[#39574f]"
+                  >
+                    6-digit verification code
+                  </label>
+                  <input
+                    id="verificationCode"
+                    autoFocus
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(event) =>
+                      setVerificationCode(event.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="000000"
+                    className="mt-2 h-14 w-full rounded-xl border border-[#ccd8d3] bg-[#fbfcfb] px-4 text-center font-mono text-2xl font-bold tracking-[0.35em] text-[#18352e] outline-none transition placeholder:text-[#b4bfbb] focus:border-[#087a5b] focus:bg-white focus:ring-3 focus:ring-[#087a5b]/15"
+                  />
+                  {verificationNotice && (
+                    <p
+                      className="mt-2 text-center text-xs font-semibold text-[#087a5b]"
+                      role="status"
+                    >
+                      {verificationNotice}
+                    </p>
+                  )}
+                  <button
+                    disabled={loading || verificationCode.length !== 6}
+                    className="mt-4 h-12 w-full rounded-xl bg-[#087a5b] text-sm font-bold text-white disabled:opacity-60"
+                  >
+                    {loading ? "Confirming…" : "Verify and send"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => void resendVerificationCode()}
+                    className="mt-3 h-10 w-full text-xs font-bold text-[#087a5b] disabled:text-[#94a39f]"
+                  >
+                    Didn’t receive it? Send another code
+                  </button>
+                  <p className="mt-2 text-center text-[11px] leading-5 text-[#82918d]">
+                    The code expires in 10 minutes. Never share it with anyone.
+                  </p>
+                </form>
               )}
               {result.status !== "PENDING" && (
                 <button

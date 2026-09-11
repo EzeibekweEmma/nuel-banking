@@ -70,6 +70,9 @@ enum AuditAction {
   PASSWORD_RESET_COMPLETED
   EMAIL_VERIFICATION_REQUESTED
   EMAIL_VERIFIED
+  TRANSFER_VERIFICATION_CODE_SENT
+  TRANSFER_VERIFICATION_SUCCEEDED
+  TRANSFER_VERIFICATION_FAILED
   DEMO_DEPOSIT_COMPLETED
 }
 
@@ -127,30 +130,44 @@ model Beneficiary {
 }
 
 model Transaction {
-  id                   String            @id @default(cuid())
+  id                   String                       @id @default(cuid())
   sourceAccountId      String
   destinationAccountId String
   beneficiaryId        String?
-  amount               Decimal           @db.Decimal(18, 2)
-  reference            String            @unique
+  amount               Decimal                      @db.Decimal(18, 2)
+  reference            String                       @unique
   idempotencyKey       String
   requestHash          String?
   description          String?
-  status               TransactionStatus @default(PENDING)
-  createdAt            DateTime          @default(now())
+  status               TransactionStatus            @default(PENDING)
+  createdAt            DateTime                     @default(now())
   completedAt          DateTime?
   reviewedAt           DateTime?
   reviewedById         String?
-  sourceAccount        Account           @relation("SourceAccountTransactions", fields: [sourceAccountId], references: [id], onDelete: Restrict)
-  destinationAccount   Account           @relation("DestinationAccountTransactions", fields: [destinationAccountId], references: [id], onDelete: Restrict)
-  beneficiary          Beneficiary?      @relation(fields: [beneficiaryId], references: [id], onDelete: SetNull)
-  reviewedBy           User?             @relation("AdminReviewedTransactions", fields: [reviewedById], references: [id], onDelete: SetNull)
+  sourceAccount        Account                      @relation("SourceAccountTransactions", fields: [sourceAccountId], references: [id], onDelete: Restrict)
+  destinationAccount   Account                      @relation("DestinationAccountTransactions", fields: [destinationAccountId], references: [id], onDelete: Restrict)
+  beneficiary          Beneficiary?                 @relation(fields: [beneficiaryId], references: [id], onDelete: SetNull)
+  reviewedBy           User?                        @relation("AdminReviewedTransactions", fields: [reviewedById], references: [id], onDelete: SetNull)
   fraudAssessment      FraudAssessment?
+  verificationCode     TransactionVerificationCode?
 
   @@unique([sourceAccountId, idempotencyKey])
   @@index([sourceAccountId, createdAt])
   @@index([destinationAccountId, createdAt])
   @@index([status])
+}
+
+model TransactionVerificationCode {
+  id            String      @id @default(cuid())
+  transactionId String      @unique
+  codeHash      String
+  attempts      Int         @default(0)
+  expiresAt     DateTime
+  sentAt        DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 model DepositTransaction {

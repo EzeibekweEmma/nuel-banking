@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   AccountStatus,
   AuditAction,
@@ -12,11 +13,25 @@ import {
   Prisma,
   TransactionStatus,
 } from "@prisma/client";
-import { createHash, randomUUID } from "crypto";
+import {
+  createHash,
+  createHmac,
+  randomInt,
+  randomUUID,
+  timingSafeEqual,
+} from "crypto";
 import { FraudContext, FraudTransactionClient } from "../fraud/fraud.types";
 import { FraudService } from "../fraud/fraud.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateTransferDto } from "./dto/create-transfer.dto";
+import {
+  TransactionVerificationDelivery,
+  TransactionVerificationMailer,
+} from "./transaction-verification-mailer";
+
+const VERIFICATION_CODE_VALIDITY_MS = 10 * 60 * 1000;
+const VERIFICATION_CODE_RESEND_COOLDOWN_MS = 60 * 1000;
+const MAX_VERIFICATION_ATTEMPTS = 5;
 
 const customerTransferInclude = {
   sourceAccount: {
@@ -43,6 +58,8 @@ export class TransactionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fraudService: FraudService,
+    private readonly config: ConfigService,
+    private readonly verificationMailer: TransactionVerificationMailer,
   ) {}
 
   async transfer(
@@ -53,10 +70,14 @@ export class TransactionsService {
   ) {
     const amount = this.toAmount(dto.amount);
     const requestHash = this.createRequestHash(dto);
+    const verificationDeliveries: TransactionVerificationDelivery[] = [];
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         const sender = await tx.account.findUnique({
           where: { userId: senderId },
+          include: {
+            user: { select: { email: true, firstName: true } },
+          },
         });
         if (!sender || sender.status !== AccountStatus.ACTIVE)
           throw new BadRequestException("Sender account is unavailable");
@@ -76,6 +97,9 @@ export class TransactionsService {
           );
         const recipient = await tx.account.findUnique({
           where: { accountNumber: dto.destinationAccountNumber },
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+          },
         });
         if (!recipient || recipient.status !== AccountStatus.ACTIVE)
           throw new NotFoundException("Destination account not found");
@@ -167,7 +191,36 @@ export class TransactionsService {
           });
           return held;
         }
-        if (fraud.decision === FraudDecision.VERIFY) return transaction;
+        if (fraud.decision === FraudDecision.VERIFY) {
+          const code = this.createVerificationCode();
+          const codeHash = this.hashVerificationCode(transaction.id, code);
+          await tx.transactionVerificationCode.create({
+            data: {
+              transactionId: transaction.id,
+              codeHash,
+              expiresAt: new Date(Date.now() + VERIFICATION_CODE_VALIDITY_MS),
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              userId: senderId,
+              action: AuditAction.TRANSFER_VERIFICATION_CODE_SENT,
+              entityType: "Transaction",
+              entityId: transaction.id,
+            },
+          });
+          verificationDeliveries.push({
+            transactionId: transaction.id,
+            codeHash,
+            email: sender.user.email,
+            firstName: sender.user.firstName,
+            code,
+            amount: amount.toFixed(2),
+            currency: sender.currency,
+            recipientName: `${recipient.user.firstName} ${recipient.user.lastName}`,
+          });
+          return transaction;
+        }
         return this.completeTransfer(
           tx,
           transaction.id,
@@ -178,6 +231,9 @@ export class TransactionsService {
           senderId,
         );
       });
+      const delivery = verificationDeliveries[0];
+      if (delivery) this.verificationMailer.queue(delivery);
+      return result;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -205,22 +261,88 @@ export class TransactionsService {
     }
   }
 
-  async verify(senderId: string, transactionId: string) {
-    return this.prisma.$transaction(async (tx) => {
+  async verify(senderId: string, transactionId: string, code: string) {
+    const outcome = await this.prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.findFirst({
         where: {
           id: transactionId,
           sourceAccount: { userId: senderId },
           status: TransactionStatus.PENDING,
         },
-        include: { fraudAssessment: true },
+        include: { fraudAssessment: true, verificationCode: true },
       });
       if (
         !transaction ||
         transaction.fraudAssessment?.decision !== FraudDecision.VERIFY
       )
         throw new NotFoundException("Transfer awaiting verification not found");
-      return this.completeTransfer(
+      const verificationCode = transaction.verificationCode;
+      if (!verificationCode) {
+        return {
+          error: "Request a new verification code to continue this transfer.",
+        } as const;
+      }
+      if (verificationCode.expiresAt <= new Date()) {
+        await tx.transactionVerificationCode.deleteMany({
+          where: { id: verificationCode.id },
+        });
+        await this.recordVerificationFailure(tx, senderId, transaction.id, {
+          reason: "EXPIRED",
+        });
+        return {
+          error: "This verification code has expired. Request a new code.",
+        } as const;
+      }
+      if (verificationCode.attempts >= MAX_VERIFICATION_ATTEMPTS) {
+        return {
+          error: "Too many incorrect attempts. Request a new code.",
+        } as const;
+      }
+      if (
+        !this.matchesVerificationCode(
+          transaction.id,
+          code,
+          verificationCode.codeHash,
+        )
+      ) {
+        const nextAttempts = verificationCode.attempts + 1;
+        await tx.transactionVerificationCode.updateMany({
+          where: {
+            id: verificationCode.id,
+            codeHash: verificationCode.codeHash,
+          },
+          data: { attempts: { increment: 1 } },
+        });
+        await this.recordVerificationFailure(tx, senderId, transaction.id, {
+          reason: "INCORRECT_CODE",
+          attempts: nextAttempts,
+        });
+        const remaining = MAX_VERIFICATION_ATTEMPTS - nextAttempts;
+        return {
+          error:
+            remaining > 0
+              ? `Incorrect verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`
+              : "Too many incorrect attempts. Request a new code.",
+        } as const;
+      }
+
+      const consumed = await tx.transactionVerificationCode.deleteMany({
+        where: { id: verificationCode.id, codeHash: verificationCode.codeHash },
+      });
+      if (consumed.count !== 1) {
+        return {
+          error: "This verification code has already been used.",
+        } as const;
+      }
+      await tx.auditLog.create({
+        data: {
+          userId: senderId,
+          action: AuditAction.TRANSFER_VERIFICATION_SUCCEEDED,
+          entityType: "Transaction",
+          entityId: transaction.id,
+        },
+      });
+      const completed = await this.completeTransfer(
         tx,
         transaction.id,
         transaction.sourceAccountId,
@@ -229,7 +351,97 @@ export class TransactionsService {
         senderId,
         senderId,
       );
+      return { transaction: completed } as const;
     });
+    if ("error" in outcome) throw new BadRequestException(outcome.error);
+    return outcome.transaction;
+  }
+
+  async resendVerificationCode(senderId: string, transactionId: string) {
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findFirst({
+        where: {
+          id: transactionId,
+          sourceAccount: { userId: senderId },
+          status: TransactionStatus.PENDING,
+        },
+        include: {
+          fraudAssessment: true,
+          verificationCode: true,
+          sourceAccount: {
+            include: { user: { select: { email: true, firstName: true } } },
+          },
+          destinationAccount: {
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      });
+      if (
+        !transaction ||
+        transaction.fraudAssessment?.decision !== FraudDecision.VERIFY
+      ) {
+        throw new NotFoundException("Transfer awaiting verification not found");
+      }
+
+      if (
+        transaction.verificationCode &&
+        transaction.verificationCode.attempts < MAX_VERIFICATION_ATTEMPTS &&
+        transaction.verificationCode.sentAt.getTime() +
+          VERIFICATION_CODE_RESEND_COOLDOWN_MS >
+          Date.now()
+      ) {
+        return {
+          message:
+            "A verification code was sent recently. Please wait a minute before requesting another.",
+        } as const;
+      }
+
+      const code = this.createVerificationCode();
+      const codeHash = this.hashVerificationCode(transaction.id, code);
+      await tx.transactionVerificationCode.upsert({
+        where: { transactionId: transaction.id },
+        create: {
+          transactionId: transaction.id,
+          codeHash,
+          expiresAt: new Date(Date.now() + VERIFICATION_CODE_VALIDITY_MS),
+        },
+        update: {
+          codeHash,
+          attempts: 0,
+          expiresAt: new Date(Date.now() + VERIFICATION_CODE_VALIDITY_MS),
+          sentAt: new Date(),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: senderId,
+          action: AuditAction.TRANSFER_VERIFICATION_CODE_SENT,
+          entityType: "Transaction",
+          entityId: transaction.id,
+          metadata: { resent: true },
+        },
+      });
+      return {
+        message: "We sent a new verification code to your email address.",
+        delivery: {
+          transactionId: transaction.id,
+          codeHash,
+          email: transaction.sourceAccount.user.email,
+          firstName: transaction.sourceAccount.user.firstName,
+          code,
+          amount: transaction.amount.toFixed(2),
+          currency: transaction.sourceAccount.currency,
+          recipientName: `${transaction.destinationAccount.user.firstName} ${transaction.destinationAccount.user.lastName}`,
+        } satisfies TransactionVerificationDelivery,
+      } as const;
+    });
+
+    if ("delivery" in outcome && outcome.delivery) {
+      this.verificationMailer.queue(outcome.delivery);
+    }
+    return { message: outcome.message };
   }
 
   async approveHeld(adminId: string, transactionId: string) {
@@ -501,6 +713,52 @@ export class TransactionsService {
       },
       fraudAssessment: null,
     };
+  }
+
+  private createVerificationCode(): string {
+    return randomInt(100_000, 1_000_000).toString();
+  }
+
+  private hashVerificationCode(transactionId: string, code: string): string {
+    const secret =
+      this.config.get<string>("TRANSACTION_VERIFICATION_SECRET") ??
+      this.config.getOrThrow<string>("JWT_ACCESS_SECRET");
+    return createHmac("sha256", secret)
+      .update(`transaction-verification:${transactionId}:${code}`)
+      .digest("hex");
+  }
+
+  private matchesVerificationCode(
+    transactionId: string,
+    code: string,
+    storedHash: string,
+  ): boolean {
+    if (!/^[a-f\d]{64}$/.test(storedHash)) return false;
+    const candidate = Buffer.from(
+      this.hashVerificationCode(transactionId, code),
+      "hex",
+    );
+    const stored = Buffer.from(storedHash, "hex");
+    return (
+      candidate.length === stored.length && timingSafeEqual(candidate, stored)
+    );
+  }
+
+  private async recordVerificationFailure(
+    tx: FraudTransactionClient,
+    senderId: string,
+    transactionId: string,
+    metadata: { reason: string; attempts?: number },
+  ): Promise<void> {
+    await tx.auditLog.create({
+      data: {
+        userId: senderId,
+        action: AuditAction.TRANSFER_VERIFICATION_FAILED,
+        entityType: "Transaction",
+        entityId: transactionId,
+        metadata,
+      },
+    });
   }
 
   private async recordDevice(

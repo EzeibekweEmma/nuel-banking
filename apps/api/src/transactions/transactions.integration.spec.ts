@@ -16,18 +16,22 @@ const describeIntegration =
 describeIntegration("TransactionsService PostgreSQL integration", () => {
   const prisma = new PrismaClient();
   const fraudService = {
-    assess: jest
-      .fn()
-      .mockResolvedValue({
-        riskScore: 0,
-        riskLevel: FraudRiskLevel.LOW,
-        decision: FraudDecision.APPROVE,
-        reasons: [],
-      }),
+    assess: jest.fn().mockResolvedValue({
+      riskScore: 0,
+      riskLevel: FraudRiskLevel.LOW,
+      decision: FraudDecision.APPROVE,
+      reasons: [],
+    }),
   };
+  const verificationMailer = { queue: jest.fn() };
   const service = new TransactionsService(
     prisma as unknown as PrismaService,
     fraudService as never,
+    {
+      get: jest.fn(),
+      getOrThrow: jest.fn().mockReturnValue("test-secret"),
+    } as never,
+    verificationMailer as never,
   );
   const suffix = randomUUID();
   let sourceAccountId: string;
@@ -200,5 +204,48 @@ describeIntegration("TransactionsService PostgreSQL integration", () => {
     await expect(
       service.getDetail(destinationUserId, held.id),
     ).resolves.toEqual(expect.objectContaining({ direction: "CREDIT" }));
+  });
+
+  it("requires the emailed one-time code for a medium-risk transfer", async () => {
+    fraudService.assess.mockResolvedValueOnce({
+      riskScore: 45,
+      riskLevel: FraudRiskLevel.MEDIUM,
+      decision: FraudDecision.VERIFY,
+      reasons: ["UNUSUAL_AMOUNT"],
+    });
+    const destination = await prisma.account.findUniqueOrThrow({
+      where: { id: destinationAccountId },
+    });
+    const pending = await service.transfer(sourceUserId, `verified-${suffix}`, {
+      destinationAccountNumber: destination.accountNumber,
+      amount: "25.00",
+    });
+    const delivery = verificationMailer.queue.mock.calls.at(-1)?.[0] as
+      | { code: string; codeHash: string }
+      | undefined;
+    const storedCode = await prisma.transactionVerificationCode.findUnique({
+      where: { transactionId: pending.id },
+    });
+
+    expect(pending.status).toBe(TransactionStatus.PENDING);
+    expect(delivery?.code).toMatch(/^\d{6}$/);
+    expect(storedCode?.codeHash).toHaveLength(64);
+    expect(storedCode?.codeHash).not.toBe(delivery?.code);
+    await expect(
+      service.verify(sourceUserId, pending.id, "000000"),
+    ).rejects.toThrow("Incorrect verification code");
+    await expect(
+      service.verify(sourceUserId, pending.id, delivery?.code ?? ""),
+    ).resolves.toEqual(
+      expect.objectContaining({ status: TransactionStatus.COMPLETED }),
+    );
+    await expect(
+      service.verify(sourceUserId, pending.id, delivery?.code ?? ""),
+    ).rejects.toThrow("Transfer awaiting verification not found");
+    await expect(
+      prisma.transactionVerificationCode.findUnique({
+        where: { transactionId: pending.id },
+      }),
+    ).resolves.toBeNull();
   });
 });

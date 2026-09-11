@@ -13,6 +13,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { EmailVerifiedGuard } from "../auth/email-verified.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CreateTransferDto } from "./dto/create-transfer.dto";
+import { VerifyTransferDto } from "./dto/verify-transfer.dto";
 import { TransactionsService } from "./transactions.service";
 
 @UseGuards(JwtAuthGuard)
@@ -38,8 +39,15 @@ export class TransactionsController {
   @UseGuards(EmailVerifiedGuard) @Post(":id/verify") verify(
     @CurrentUser() user: AuthUser,
     @Param("id") id: string,
+    @Body() dto: VerifyTransferDto,
   ) {
-    return this.transactionsService.verify(user.id, id);
+    return this.transactionsService.verify(user.id, id, dto.code);
+  }
+  @UseGuards(EmailVerifiedGuard) @Post(":id/verification-code") resendCode(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+  ) {
+    return this.transactionsService.resendVerificationCode(user.id, id);
   }
   @Get() list(@CurrentUser() user: AuthUser) {
     return this.transactionsService.list(user.id);
