@@ -20,7 +20,7 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "crypto";
-import { FraudContext, FraudTransactionClient } from "../fraud/fraud.types";
+import { ClientFraudHints, FraudTransactionClient } from "../fraud/fraud.types";
 import { FraudService } from "../fraud/fraud.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateTransferDto } from "./dto/create-transfer.dto";
@@ -66,11 +66,10 @@ export class TransactionsService {
     senderId: string,
     idempotencyKey: string,
     dto: CreateTransferDto,
-    context: FraudContext = {},
+    hints: ClientFraudHints = { source: "CLIENT_HEADERS" },
   ) {
     const amount = this.toAmount(dto.amount);
     const requestHash = this.createRequestHash(dto);
-    const verificationDeliveries: TransactionVerificationDelivery[] = [];
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         const sender = await tx.account.findUnique({
@@ -133,7 +132,7 @@ export class TransactionsService {
           senderId,
           sender.id,
           amount.toNumber(),
-          context,
+          hints,
         );
         await tx.fraudAssessment.create({
           data: { transactionId: transaction.id, ...fraud },
@@ -151,7 +150,7 @@ export class TransactionsService {
             },
           },
         });
-        await this.recordDevice(tx, senderId, context);
+        await this.recordClientFraudHints(tx, senderId, hints);
         if (fraud.decision === FraudDecision.HOLD) {
           const held = await tx.transaction.update({
             where: { id: transaction.id },
@@ -209,7 +208,7 @@ export class TransactionsService {
               entityId: transaction.id,
             },
           });
-          verificationDeliveries.push({
+          await this.verificationMailer.queue(tx, {
             transactionId: transaction.id,
             codeHash,
             email: sender.user.email,
@@ -231,8 +230,6 @@ export class TransactionsService {
           senderId,
         );
       });
-      const delivery = verificationDeliveries[0];
-      if (delivery) this.verificationMailer.queue(delivery);
       return result;
     } catch (error) {
       if (
@@ -423,24 +420,22 @@ export class TransactionsService {
           metadata: { resent: true },
         },
       });
+      const delivery = {
+        transactionId: transaction.id,
+        codeHash,
+        email: transaction.sourceAccount.user.email,
+        firstName: transaction.sourceAccount.user.firstName,
+        code,
+        amount: transaction.amount.toFixed(2),
+        currency: transaction.sourceAccount.currency,
+        recipientName: `${transaction.destinationAccount.user.firstName} ${transaction.destinationAccount.user.lastName}`,
+      } satisfies TransactionVerificationDelivery;
+      await this.verificationMailer.queue(tx, delivery);
       return {
         message: "We sent a new verification code to your email address.",
-        delivery: {
-          transactionId: transaction.id,
-          codeHash,
-          email: transaction.sourceAccount.user.email,
-          firstName: transaction.sourceAccount.user.firstName,
-          code,
-          amount: transaction.amount.toFixed(2),
-          currency: transaction.sourceAccount.currency,
-          recipientName: `${transaction.destinationAccount.user.firstName} ${transaction.destinationAccount.user.lastName}`,
-        } satisfies TransactionVerificationDelivery,
       } as const;
     });
 
-    if ("delivery" in outcome && outcome.delivery) {
-      this.verificationMailer.queue(outcome.delivery);
-    }
     return { message: outcome.message };
   }
 
@@ -761,25 +756,25 @@ export class TransactionsService {
     });
   }
 
-  private async recordDevice(
+  private async recordClientFraudHints(
     tx: FraudTransactionClient,
     userId: string,
-    context: FraudContext,
+    hints: ClientFraudHints,
   ) {
-    if (context.deviceFingerprint)
+    if (hints.deviceFingerprintHint)
       await tx.device.upsert({
         where: {
           userId_fingerprint: {
             userId,
-            fingerprint: context.deviceFingerprint,
+            fingerprint: hints.deviceFingerprintHint,
           },
         },
         create: {
           userId,
-          fingerprint: context.deviceFingerprint,
-          lastLocation: context.location,
+          fingerprint: hints.deviceFingerprintHint,
+          lastLocation: hints.locationHint,
         },
-        update: { lastLocation: context.location, lastSeenAt: new Date() },
+        update: { lastLocation: hints.locationHint, lastSeenAt: new Date() },
       });
   }
   private toAmount(value: string): Prisma.Decimal {

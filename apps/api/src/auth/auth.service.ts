@@ -2,24 +2,18 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import { AccountType, User, UserRole } from "@prisma/client";
+import { AccountType, EmailJobType, User, UserRole } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import { createHash, randomBytes, randomInt } from "crypto";
-import { createTransport } from "nodemailer";
+import { EmailOutboxService } from "../email/email-outbox.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthUser } from "./auth-user.interface";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
-import {
-  createEmailVerificationEmail,
-  TransactionalEmail,
-} from "./email-verification-email";
-import { createPasswordResetEmail } from "./password-reset-email";
 
 interface TokenPayload {
   sub: string;
@@ -40,20 +34,17 @@ export interface EmailVerificationRequestResult {
   verificationUrl?: string;
 }
 
-const EMAIL_DELIVERY_ATTEMPTS = 4;
-const EMAIL_RETRY_DELAYS_MS = [1_000, 3_000, 9_000];
 const EMAIL_VERIFICATION_VALIDITY_MS = 24 * 60 * 60 * 1000;
 const EMAIL_VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
 const PASSWORD_RESET_REQUEST_COOLDOWN_MS = 2 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly emailOutbox: EmailOutboxService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthTokens> {
@@ -64,6 +55,7 @@ export class AuthService {
     const token = randomBytes(32).toString("hex");
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_VALIDITY_MS);
+    const verificationUrl = this.createVerificationUrl(token);
     const user = await this.prisma.$transaction(async (tx) => {
       const createdUser = await tx.user.create({
         data: {
@@ -81,6 +73,13 @@ export class AuthService {
       });
       await tx.emailVerificationToken.create({
         data: { userId: createdUser.id, tokenHash, expiresAt },
+      });
+      await this.emailOutbox.enqueue(tx, {
+        kind: EmailJobType.EMAIL_VERIFICATION,
+        email: createdUser.email,
+        firstName: createdUser.firstName,
+        verificationUrl,
+        tokenHash,
       });
       await tx.auditLog.createMany({
         data: [
@@ -101,13 +100,6 @@ export class AuthService {
       return createdUser;
     });
 
-    const verificationUrl = this.createVerificationUrl(token);
-    this.queueEmailVerificationEmail(
-      user.email,
-      user.firstName,
-      verificationUrl,
-      tokenHash,
-    );
     return this.issueTokens(user);
   }
 
@@ -190,11 +182,23 @@ export class AuthService {
     const token = randomBytes(32).toString("hex");
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const frontendUrl = (
+      this.config.get<string>("FRONTEND_URL") ?? "http://localhost:3000"
+    ).replace(/\/$/, "");
+    const resetUrl =
+      frontendUrl + "/reset-password?token=" + encodeURIComponent(token);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.passwordResetToken.deleteMany({ where: { userId: user.id } });
       await tx.passwordResetToken.create({
         data: { userId: user.id, tokenHash, expiresAt },
+      });
+      await this.emailOutbox.enqueue(tx, {
+        kind: EmailJobType.PASSWORD_RESET,
+        email: user.email,
+        firstName: user.firstName,
+        resetUrl,
+        tokenHash,
       });
       await tx.auditLog.create({
         data: {
@@ -205,18 +209,6 @@ export class AuthService {
         },
       });
     });
-
-    const frontendUrl = (
-      this.config.get<string>("FRONTEND_URL") ?? "http://localhost:3000"
-    ).replace(/\/$/, "");
-    const resetUrl =
-      frontendUrl + "/reset-password?token=" + encodeURIComponent(token);
-    this.queuePasswordResetEmail(
-      user.email,
-      user.firstName,
-      resetUrl,
-      tokenHash,
-    );
 
     return process.env.NODE_ENV !== "production"
       ? { message, resetUrl }
@@ -364,10 +356,18 @@ export class AuthService {
     const token = randomBytes(32).toString("hex");
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_VALIDITY_MS);
+    const verificationUrl = this.createVerificationUrl(token);
     await this.prisma.$transaction(async (tx) => {
       await tx.emailVerificationToken.deleteMany({ where: { userId } });
       await tx.emailVerificationToken.create({
         data: { userId, tokenHash, expiresAt },
+      });
+      await this.emailOutbox.enqueue(tx, {
+        kind: EmailJobType.EMAIL_VERIFICATION,
+        email: user.email,
+        firstName: user.firstName,
+        verificationUrl,
+        tokenHash,
       });
       await tx.auditLog.create({
         data: {
@@ -379,13 +379,6 @@ export class AuthService {
       });
     });
 
-    const verificationUrl = this.createVerificationUrl(token);
-    this.queueEmailVerificationEmail(
-      user.email,
-      user.firstName,
-      verificationUrl,
-      tokenHash,
-    );
     const message = "We sent a new verification link to your email address.";
     return process.env.NODE_ENV !== "production"
       ? { message, verificationUrl }
@@ -451,212 +444,6 @@ export class AuthService {
       this.config.get<string>("FRONTEND_URL") ?? "http://localhost:3000"
     ).replace(/\/$/, "");
     return frontendUrl + "/verify-email?token=" + encodeURIComponent(token);
-  }
-
-  private queuePasswordResetEmail(
-    email: string,
-    firstName: string,
-    resetUrl: string,
-    tokenHash: string,
-  ): void {
-    if (!this.hasSmtpConfiguration()) {
-      this.logger.warn(
-        "Password reset email was not queued because SMTP is not configured.",
-      );
-      return;
-    }
-
-    void this.deliverPasswordResetEmail(
-      email,
-      firstName,
-      resetUrl,
-      tokenHash,
-    ).catch(() => {
-      this.logger.error("Background password reset email delivery failed.");
-    });
-  }
-
-  private queueEmailVerificationEmail(
-    email: string,
-    firstName: string,
-    verificationUrl: string,
-    tokenHash: string,
-  ): void {
-    if (!this.hasSmtpConfiguration()) {
-      this.logger.warn(
-        "Email verification message was not queued because SMTP is not configured.",
-      );
-      return;
-    }
-
-    void this.deliverEmailVerificationEmail(
-      email,
-      firstName,
-      verificationUrl,
-      tokenHash,
-    ).catch(() => {
-      this.logger.error("Background email verification delivery failed.");
-    });
-  }
-
-  private hasSmtpConfiguration(): boolean {
-    const host = this.config.get<string>("SMTP_HOST");
-    const from = this.config.get<string>("EMAIL_FROM");
-    const user = this.config.get<string>("SMTP_USER");
-    const password = this.config.get<string>("SMTP_PASSWORD");
-    return Boolean(
-      host && from && ((!user && !password) || (user && password)),
-    );
-  }
-
-  private async deliverPasswordResetEmail(
-    email: string,
-    firstName: string,
-    resetUrl: string,
-    tokenHash: string,
-  ): Promise<void> {
-    await this.deliverEmailWithRetry(
-      "Password reset",
-      async () => {
-        const activeToken = await this.prisma.passwordResetToken.findUnique({
-          where: { tokenHash },
-          select: { id: true },
-        });
-        return Boolean(activeToken);
-      },
-      () => this.sendPasswordResetEmail(email, firstName, resetUrl),
-    );
-  }
-
-  private async deliverEmailVerificationEmail(
-    email: string,
-    firstName: string,
-    verificationUrl: string,
-    tokenHash: string,
-  ): Promise<void> {
-    await this.deliverEmailWithRetry(
-      "Email verification",
-      async () => {
-        const activeToken = await this.prisma.emailVerificationToken.findUnique(
-          {
-            where: { tokenHash },
-            select: { id: true },
-          },
-        );
-        return Boolean(activeToken);
-      },
-      () => this.sendEmailVerificationEmail(email, firstName, verificationUrl),
-    );
-  }
-
-  private async deliverEmailWithRetry(
-    label: string,
-    isTokenActive: () => Promise<boolean>,
-    send: () => Promise<boolean>,
-  ): Promise<void> {
-    for (let attempt = 1; attempt <= EMAIL_DELIVERY_ATTEMPTS; attempt += 1) {
-      if (attempt > 1 && !(await isTokenActive())) return;
-      if (await send()) {
-        if (attempt > 1) {
-          this.logger.log(`${label} email delivered on attempt ${attempt}.`);
-        }
-        return;
-      }
-      if (attempt < EMAIL_DELIVERY_ATTEMPTS) {
-        await this.wait(EMAIL_RETRY_DELAYS_MS[attempt - 1]);
-      }
-    }
-
-    this.logger.error(
-      `${label} email delivery failed after ${EMAIL_DELIVERY_ATTEMPTS} attempts.`,
-    );
-  }
-
-  private wait(milliseconds: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
-  }
-
-  private async sendPasswordResetEmail(
-    email: string,
-    firstName: string,
-    resetUrl: string,
-  ): Promise<boolean> {
-    return this.sendTransactionalEmail(
-      email,
-      createPasswordResetEmail(firstName, resetUrl),
-      "Password reset",
-    );
-  }
-
-  private async sendEmailVerificationEmail(
-    email: string,
-    firstName: string,
-    verificationUrl: string,
-  ): Promise<boolean> {
-    return this.sendTransactionalEmail(
-      email,
-      createEmailVerificationEmail(firstName, verificationUrl),
-      "Email verification",
-    );
-  }
-
-  private async sendTransactionalEmail(
-    email: string,
-    message: TransactionalEmail,
-    label: string,
-  ): Promise<boolean> {
-    const host = this.config.get<string>("SMTP_HOST");
-    const port = Number(this.config.get<string>("SMTP_PORT") ?? "587");
-    const secure =
-      this.config.get<string>("SMTP_SECURE") === "true" || port === 465;
-    const user = this.config.get<string>("SMTP_USER");
-    const password = this.config.get<string>("SMTP_PASSWORD");
-    const from = this.config.get<string>("EMAIL_FROM");
-    if (!host || !from) return false;
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      this.logger.warn(
-        `${label} email was not sent because SMTP_PORT is invalid.`,
-      );
-      return false;
-    }
-    if ((user && !password) || (!user && password)) {
-      this.logger.warn(
-        `${label} email was not sent because SMTP credentials are incomplete.`,
-      );
-      return false;
-    }
-
-    const transport = createTransport({
-      host,
-      port,
-      secure,
-      auth: user && password ? { user, pass: password } : undefined,
-      requireTLS: this.config.get<string>("SMTP_REQUIRE_TLS") === "true",
-      connectionTimeout: 8_000,
-      greetingTimeout: 8_000,
-      socketTimeout: 10_000,
-    });
-
-    try {
-      await transport.sendMail({
-        from,
-        to: email,
-        subject: message.subject,
-        html: message.html,
-        text: message.text,
-        headers: { "X-Auto-Response-Suppress": "All" },
-      });
-      return true;
-    } catch (error: unknown) {
-      const code =
-        typeof error === "object" && error !== null && "code" in error
-          ? String(error.code)
-          : "UNKNOWN";
-      this.logger.warn(`${label} email delivery attempt failed (${code}).`);
-      return false;
-    } finally {
-      transport.close();
-    }
   }
 
   private async verifyRefreshToken(token: string): Promise<TokenPayload> {

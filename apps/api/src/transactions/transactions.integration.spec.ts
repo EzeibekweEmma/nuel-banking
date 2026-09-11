@@ -220,7 +220,7 @@ describeIntegration("TransactionsService PostgreSQL integration", () => {
       destinationAccountNumber: destination.accountNumber,
       amount: "25.00",
     });
-    const delivery = verificationMailer.queue.mock.calls.at(-1)?.[0] as
+    const delivery = verificationMailer.queue.mock.calls.at(-1)?.[1] as
       | { code: string; codeHash: string }
       | undefined;
     const storedCode = await prisma.transactionVerificationCode.findUnique({

@@ -6,8 +6,10 @@ import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { BeneficiariesModule } from "./beneficiaries/beneficiaries.module";
 import { ChatbotModule } from "./chatbot/chatbot.module";
+import { validateEnvironment } from "./config/environment";
 import { FraudModule } from "./fraud/fraud.module";
 import { FundingModule } from "./funding/funding.module";
+import { HealthModule } from "./health/health.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RateLimitModule } from "./rate-limit/rate-limit.module";
@@ -19,6 +21,7 @@ import { UsersModule } from "./users/users.module";
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env", "../../.env"],
+      validate: validateEnvironment,
     }),
     PrismaModule,
     RateLimitModule,
@@ -29,6 +32,7 @@ import { UsersModule } from "./users/users.module";
     BeneficiariesModule,
     FraudModule,
     FundingModule,
+    HealthModule,
     ChatbotModule,
     NotificationsModule,
     AdminModule,

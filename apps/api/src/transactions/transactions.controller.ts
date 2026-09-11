@@ -13,6 +13,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { EmailVerifiedGuard } from "../auth/email-verified.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RateLimit } from "../rate-limit/rate-limit.decorator";
+import { createClientFraudHints } from "../fraud/client-fraud-hints";
 import { CreateTransferDto } from "./dto/create-transfer.dto";
 import { VerifyTransferDto } from "./dto/verify-transfer.dto";
 import { TransactionsService } from "./transactions.service";
@@ -40,10 +41,12 @@ export class TransactionsController {
       throw new BadRequestException(
         "A valid Idempotency-Key header is required",
       );
-    return this.transactionsService.transfer(user.id, idempotencyKey, dto, {
-      deviceFingerprint,
-      location,
-    });
+    return this.transactionsService.transfer(
+      user.id,
+      idempotencyKey,
+      dto,
+      createClientFraudHints(deviceFingerprint, location),
+    );
   }
   @RateLimit({
     bucket: "transfer-verification",
