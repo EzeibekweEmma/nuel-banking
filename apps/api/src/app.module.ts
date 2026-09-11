@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { BeneficiariesModule } from './beneficiaries/beneficiaries.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
 import { FraudModule } from './fraud/fraud.module';
+import { FundingModule } from './funding/funding.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TransactionsModule } from './transactions/transactions.module';
@@ -22,6 +23,7 @@ import { UsersModule } from './users/users.module';
     TransactionsModule,
     BeneficiariesModule,
     FraudModule,
+    FundingModule,
     ChatbotModule,
     NotificationsModule,
     AdminModule,

@@ -11,6 +11,8 @@ export interface Recipient { accountNumber: string; currency: string; firstName:
 export interface Transaction { id: string; amount: string; reference: string; description: string | null; status: string; createdAt: string; completedAt: string | null; destinationAccount?: { accountNumber: string; user?: { firstName: string; lastName: string } }; fraudAssessment?: { riskScore: number; riskLevel: string; decision: string; reasons: string[] }; }
 export interface Beneficiary { id: string; nickname: string; createdAt: string; account: { accountNumber: string; currency: string; user?: { firstName: string; lastName: string } }; }
 export interface Notification { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; }
+export interface DepositTransaction { id: string; amount: string; balanceAfter: string; currency: string; reference: string; source: 'DEMO'; status: string; createdAt: string; completedAt: string; }
+export interface DemoFundingConfiguration { enabled: boolean; limits: { minimumAmount: number; maximumAmount: number; dailyAmount: number; dailyDeposits: number }; }
 export interface PageResult<T> { data: T[]; total: number; page: number; limit: number; }
 export interface AdminTransaction extends Transaction { sourceAccount: { accountNumber: string; user?: { firstName: string; lastName: string } }; destinationAccount: { accountNumber: string; user?: { firstName: string; lastName: string } }; }
 export interface FraudAssessment { id: string; riskScore: number; riskLevel: string; decision: string; reasons: string[]; createdAt: string; transaction: { id: string; reference: string; status: string; amount: string; createdAt: string; sourceAccount: { accountNumber: string; user: { firstName: string; lastName: string } }; destinationAccount: { accountNumber: string; user: { firstName: string; lastName: string } } }; }
@@ -56,6 +58,9 @@ export const api = {
   logout: () => { const refreshToken = getTokens()?.refreshToken; return refreshToken ? request<void>('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }) : Promise.resolve(); },
   me: () => request<User>('/auth/me'), account: () => request<Account>('/accounts/me'), balance: () => request<{ balance: string; currency: string }>('/accounts/me/balance'),
   lookupRecipient: (accountNumber: string) => request<Recipient>(`/accounts/lookup/${accountNumber}`),
+  demoFundingConfiguration: () => request<DemoFundingConfiguration>('/funding/demo/configuration'),
+  demoFund: (amount: string, idempotencyKey: string) => request<DepositTransaction>('/funding/demo', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ amount }) }),
+  deposits: () => request<DepositTransaction[]>('/funding/deposits'),
   transactions: () => request<Transaction[]>('/transactions'), transaction: (id: string) => request<Transaction>(`/transactions/${id}`),
   transfer: (data: { destinationAccountNumber: string; amount: string; description?: string }, idempotencyKey: string) => request<Transaction>('/transactions/transfer', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(data) }),
   verifyTransfer: (id: string) => request<Transaction>(`/transactions/${id}/verify`, { method: 'POST' }),

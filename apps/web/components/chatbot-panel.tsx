@@ -6,7 +6,7 @@ import { Icon } from './icons';
 
 interface ChatMessage { from: 'customer' | 'assistant'; content: string; }
 
-const suggestions = ['What is my balance?', 'Explain fraud checks'];
+const suggestions = ['What is my balance?', 'How do I add money?'];
 
 export function ChatbotPanel() {
   const [open, setOpen] = useState(false);

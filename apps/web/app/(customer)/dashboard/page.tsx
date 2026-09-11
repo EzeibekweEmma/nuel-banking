@@ -10,6 +10,7 @@ import { Account, api, Transaction } from '../../../lib/api';
 import { formatMoney } from '../../../lib/format';
 
 const actions: { label: string; hint: string; href: string; icon: IconName }[] = [
+  { label: 'Add money', hint: 'Fund your demo account', href: '/funding', icon: 'wallet' },
   { label: 'Send money', hint: 'Fast bank transfer', href: '/transfer', icon: 'arrow-up-right' },
   { label: 'Beneficiaries', hint: 'Manage recipients', href: '/beneficiaries', icon: 'users' },
   { label: 'Transactions', hint: 'View all activity', href: '/transactions', icon: 'receipt' },
@@ -61,7 +62,7 @@ export default function DashboardPage() {
 
       <section>
         <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-bold text-[#18352e]">Quick actions</h2></div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {actions.map((action, index) => (
             <Link key={action.href} href={action.href} className="group flex items-center gap-4 rounded-2xl border border-[#dce5e1] bg-white p-4 transition hover:-translate-y-0.5 hover:border-[#a9c8be] hover:shadow-[0_14px_30px_-24px_rgba(6,75,56,.6)]">
               <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${index === 0 ? 'bg-[#d8f85c] text-[#143c31]' : 'bg-[#edf4f1] text-[#087a5b]'}`}><Icon name={action.icon} className="h-5 w-5" /></span>

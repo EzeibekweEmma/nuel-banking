@@ -31,6 +31,10 @@ enum TransactionStatus {
   FAILED
 }
 
+enum FundingSource {
+  DEMO
+}
+
 enum FraudRiskLevel {
   LOW
   MEDIUM
@@ -64,17 +68,18 @@ enum AuditAction {
   ADMIN_REVIEW_PERFORMED
   PASSWORD_RESET_REQUESTED
   PASSWORD_RESET_COMPLETED
+  DEMO_DEPOSIT_COMPLETED
 }
 
 model User {
-  id                   String             @id @default(cuid())
-  email                String             @unique
+  id                   String               @id @default(cuid())
+  email                String               @unique
   passwordHash         String
   firstName            String
   lastName             String
-  role                 UserRole           @default(CUSTOMER)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  role                 UserRole             @default(CUSTOMER)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
   accounts             Account[]
   beneficiaries        Beneficiary[]
   devices              Device[]
@@ -83,86 +88,106 @@ model User {
   auditLogs            AuditLog[]
   refreshTokens        RefreshToken[]
   passwordResetTokens  PasswordResetToken[]
-  reviewedTransactions Transaction[]      @relation("AdminReviewedTransactions")
+  reviewedTransactions Transaction[]        @relation("AdminReviewedTransactions")
 }
 
 model Account {
-  id                   String        @id @default(cuid())
-  userId               String        @unique
-  accountNumber        String        @unique
-  type                 AccountType   @default(SAVINGS)
-  balance              Decimal       @db.Decimal(18, 2) @default(0)
-  currency             String        @default("NGN")
-  status               AccountStatus @default(ACTIVE)
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  user                 User          @relation(fields: [userId], references: [id], onDelete: Restrict)
-  sentTransactions     Transaction[] @relation("SourceAccountTransactions")
-  receivedTransactions Transaction[] @relation("DestinationAccountTransactions")
-  beneficiaries        Beneficiary[] @relation("BeneficiaryAccounts")
-
+  id                   String               @id @default(cuid())
+  userId               String               @unique
+  accountNumber        String               @unique
+  type                 AccountType          @default(SAVINGS)
+  balance              Decimal              @default(0) @db.Decimal(18, 2)
+  currency             String               @default("NGN")
+  status               AccountStatus        @default(ACTIVE)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sentTransactions     Transaction[]        @relation("SourceAccountTransactions")
+  receivedTransactions Transaction[]        @relation("DestinationAccountTransactions")
+  beneficiaries        Beneficiary[]        @relation("BeneficiaryAccounts")
+  depositTransactions  DepositTransaction[]
 }
 
 model Beneficiary {
-  id               String    @id @default(cuid())
-  userId           String
-  accountId        String
-  nickname         String
-  createdAt        DateTime  @default(now())
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account          Account   @relation("BeneficiaryAccounts", fields: [accountId], references: [id], onDelete: Restrict)
-  transactions     Transaction[]
+  id           String        @id @default(cuid())
+  userId       String
+  accountId    String
+  nickname     String
+  createdAt    DateTime      @default(now())
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account       @relation("BeneficiaryAccounts", fields: [accountId], references: [id], onDelete: Restrict)
+  transactions Transaction[]
 
   @@unique([userId, accountId])
   @@index([accountId])
 }
 
 model Transaction {
-  id                String             @id @default(cuid())
-  sourceAccountId   String
+  id                   String            @id @default(cuid())
+  sourceAccountId      String
   destinationAccountId String
-  beneficiaryId     String?
-  amount            Decimal            @db.Decimal(18, 2)
-  reference         String             @unique
-  idempotencyKey    String
-  requestHash       String?
-  description       String?
-  status            TransactionStatus  @default(PENDING)
-  createdAt         DateTime           @default(now())
-  completedAt       DateTime?
-  reviewedAt        DateTime?
-  reviewedById      String?
-  sourceAccount     Account            @relation("SourceAccountTransactions", fields: [sourceAccountId], references: [id], onDelete: Restrict)
-  destinationAccount Account            @relation("DestinationAccountTransactions", fields: [destinationAccountId], references: [id], onDelete: Restrict)
-  beneficiary       Beneficiary?       @relation(fields: [beneficiaryId], references: [id], onDelete: SetNull)
-  reviewedBy        User?              @relation("AdminReviewedTransactions", fields: [reviewedById], references: [id], onDelete: SetNull)
-  fraudAssessment   FraudAssessment?
+  beneficiaryId        String?
+  amount               Decimal           @db.Decimal(18, 2)
+  reference            String            @unique
+  idempotencyKey       String
+  requestHash          String?
+  description          String?
+  status               TransactionStatus @default(PENDING)
+  createdAt            DateTime          @default(now())
+  completedAt          DateTime?
+  reviewedAt           DateTime?
+  reviewedById         String?
+  sourceAccount        Account           @relation("SourceAccountTransactions", fields: [sourceAccountId], references: [id], onDelete: Restrict)
+  destinationAccount   Account           @relation("DestinationAccountTransactions", fields: [destinationAccountId], references: [id], onDelete: Restrict)
+  beneficiary          Beneficiary?      @relation(fields: [beneficiaryId], references: [id], onDelete: SetNull)
+  reviewedBy           User?             @relation("AdminReviewedTransactions", fields: [reviewedById], references: [id], onDelete: SetNull)
+  fraudAssessment      FraudAssessment?
 
+  @@unique([sourceAccountId, idempotencyKey])
   @@index([sourceAccountId, createdAt])
   @@index([destinationAccountId, createdAt])
   @@index([status])
-  @@unique([sourceAccountId, idempotencyKey])
+}
+
+model DepositTransaction {
+  id             String            @id @default(cuid())
+  accountId      String
+  amount         Decimal           @db.Decimal(18, 2)
+  balanceAfter   Decimal           @db.Decimal(18, 2)
+  currency       String
+  reference      String            @unique
+  idempotencyKey String
+  requestHash    String
+  source         FundingSource     @default(DEMO)
+  status         TransactionStatus @default(COMPLETED)
+  createdAt      DateTime          @default(now())
+  completedAt    DateTime          @default(now())
+  account        Account           @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@unique([accountId, idempotencyKey])
+  @@index([accountId, createdAt])
+  @@index([status, createdAt])
 }
 
 model FraudAssessment {
-  id            String          @id @default(cuid())
-  transactionId String          @unique
+  id            String         @id @default(cuid())
+  transactionId String         @unique
   riskScore     Int
   riskLevel     FraudRiskLevel
   decision      FraudDecision
   reasons       String[]
-  createdAt     DateTime        @default(now())
-  transaction   Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  transaction   Transaction    @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }
 
 model Device {
-  id          String   @id @default(cuid())
-  userId      String
-  fingerprint String
+  id           String   @id @default(cuid())
+  userId       String
+  fingerprint  String
   lastLocation String?
-  lastSeenAt  DateTime @default(now())
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, fingerprint])
 }
@@ -203,14 +228,14 @@ model ChatMessage {
 }
 
 model AuditLog {
-  id        String      @id @default(cuid())
-  userId    String?
-  action    AuditAction
+  id         String      @id @default(cuid())
+  userId     String?
+  action     AuditAction
   entityType String
-  entityId  String?
-  metadata  Json?
-  createdAt DateTime    @default(now())
-  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([action, createdAt])

@@ -12,6 +12,7 @@ interface NavigationItem { label: string; href: string; icon: IconName; }
 
 const navigation: NavigationItem[] = [
   { label: 'Home', href: '/dashboard', icon: 'home' },
+  { label: 'Add money', href: '/funding', icon: 'wallet' },
   { label: 'Send money', href: '/transfer', icon: 'send' },
   { label: 'Transactions', href: '/transactions', icon: 'receipt' },
   { label: 'Beneficiaries', href: '/beneficiaries', icon: 'users' },
@@ -20,6 +21,7 @@ const navigation: NavigationItem[] = [
 
 const pageDetails: Record<string, { eyebrow: string; title: string }> = {
   '/dashboard': { eyebrow: 'Overview', title: 'Your financial home' },
+  '/funding': { eyebrow: 'Account', title: 'Add money' },
   '/transfer': { eyebrow: 'Payments', title: 'Send money' },
   '/transactions': { eyebrow: 'Activity', title: 'Transactions' },
   '/beneficiaries': { eyebrow: 'Payments', title: 'Beneficiaries' },

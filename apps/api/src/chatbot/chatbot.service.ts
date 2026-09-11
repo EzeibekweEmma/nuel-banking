@@ -91,6 +91,9 @@ export class ChatbotService {
     if (/fraud|scam|suspicious|security|safe/.test(lower)) {
       return 'Every transfer is checked by Nuel’s fraud monitoring. If activity looks unusual, the transfer may be held for review and you will receive a notification. Never share your password, PIN, or OTP.';
     }
+    if (/fund|deposit|add money|top[ -]?up/.test(lower)) {
+      return 'Open Add money to credit your account through the controlled demo funding flow. Each successful deposit is recorded, and daily funding limits apply.';
+    }
     if (/transfer|send money|make a payment/.test(lower)) {
       return 'To send money, open Send money, verify the recipient’s name, enter the amount, review the details, and confirm. I can guide you, but I cannot execute a transfer.';
     }
