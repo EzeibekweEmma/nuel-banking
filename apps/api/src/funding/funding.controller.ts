@@ -7,24 +7,35 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
+import { ApiHeader, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { AuthUser } from "../auth/auth-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { EmailVerifiedGuard } from "../auth/email-verified.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
 import { CreateDemoDepositDto } from "./dto/create-demo-deposit.dto";
 import { FundingService } from "./funding.service";
 
+@ApiTags("Funding")
+@AuthenticatedApi()
 @UseGuards(JwtAuthGuard)
 @Controller("funding")
 export class FundingController {
   constructor(private readonly fundingService: FundingService) {}
 
+  @ApiOperation({ summary: "Get demo-funding availability and limits" })
   @Get("demo/configuration")
   configuration() {
     return this.fundingService.getDemoConfiguration();
   }
 
   @UseGuards(EmailVerifiedGuard)
+  @ApiOperation({ summary: "Add controlled demo funds to an account" })
+  @ApiHeader({
+    name: "Idempotency-Key",
+    required: true,
+    description: "Unique key, 8–128 characters, preventing duplicate deposits.",
+  })
   @Post("demo")
   createDemoDeposit(
     @CurrentUser() user: AuthUser,
@@ -40,6 +51,7 @@ export class FundingController {
     return this.fundingService.createDemoDeposit(user.id, key, dto);
   }
 
+  @ApiOperation({ summary: "List demo-funding deposits" })
   @Get("deposits")
   deposits(@CurrentUser() user: AuthUser) {
     return this.fundingService.listDeposits(user.id);

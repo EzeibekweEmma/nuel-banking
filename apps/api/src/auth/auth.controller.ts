@@ -12,6 +12,9 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Request } from "express";
+import { ApiNoContentResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
+import { RateLimit } from "../rate-limit/rate-limit.decorator";
 import { AuthService, AuthTokens, SessionContext } from "./auth.service";
 import { AuthUser } from "./auth-user.interface";
 import { CurrentUser } from "./current-user.decorator";
@@ -24,8 +27,8 @@ import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { VerifyEmailDto } from "./dto/verify-email.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
-import { RateLimit } from "../rate-limit/rate-limit.decorator";
 
+@ApiTags("Authentication")
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -35,6 +38,7 @@ export class AuthController {
     windowMs: 60 * 60 * 1000,
     identity: "ip",
   })
+  @ApiOperation({ summary: "Register a customer account" })
   @Post("register")
   register(
     @Body() dto: RegisterDto,
@@ -48,6 +52,7 @@ export class AuthController {
     windowMs: 15 * 60 * 1000,
     identity: "ip",
   })
+  @ApiOperation({ summary: "Sign in and create an active session" })
   @Post("login")
   login(@Body() dto: LoginDto, @Req() request: Request): Promise<AuthTokens> {
     return this.authService.login(dto, this.sessionContext(request));
@@ -57,6 +62,11 @@ export class AuthController {
     limit: 3,
     windowMs: 60 * 60 * 1000,
     identity: "ip",
+  })
+  @ApiOperation({
+    summary: "Request a password-reset email",
+    description:
+      "Always returns a neutral response so registered email addresses cannot be discovered.",
   })
   @Post("forgot-password")
   forgotPassword(@Body() dto: ForgotPasswordDto) {
@@ -68,11 +78,14 @@ export class AuthController {
     windowMs: 15 * 60 * 1000,
     identity: "ip",
   })
+  @ApiOperation({ summary: "Reset a password using an emailed token" })
   @Post("reset-password")
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.password);
   }
-  @Post("verify-email") verifyEmail(@Body() dto: VerifyEmailDto) {
+  @ApiOperation({ summary: "Verify a customer email address" })
+  @Post("verify-email")
+  verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmail(dto.token);
   }
   @RateLimit({
@@ -81,12 +94,16 @@ export class AuthController {
     windowMs: 60 * 60 * 1000,
     identity: "user",
   })
+  @AuthenticatedApi()
+  @ApiOperation({ summary: "Send another email-verification link" })
   @UseGuards(JwtAuthGuard)
   @Post("resend-email-verification")
   resendEmailVerification(@CurrentUser() user: AuthUser) {
     return this.authService.resendEmailVerification(user.id);
   }
-  @Post("refresh") refresh(
+  @ApiOperation({ summary: "Rotate a refresh token and issue new tokens" })
+  @Post("refresh")
+  refresh(
     @Body() dto: RefreshTokenDto,
     @Req() request: Request,
   ): Promise<AuthTokens> {
@@ -95,6 +112,9 @@ export class AuthController {
       this.sessionContext(request),
     );
   }
+  @AuthenticatedApi()
+  @ApiOperation({ summary: "Sign out the supplied refresh-token session" })
+  @ApiNoContentResponse({ description: "The session was revoked." })
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post("logout")
@@ -104,7 +124,11 @@ export class AuthController {
   ): Promise<void> {
     await this.authService.logout(user.id, dto.refreshToken);
   }
-  @UseGuards(JwtAuthGuard) @Get("me") me(@CurrentUser() user: AuthUser) {
+  @AuthenticatedApi()
+  @ApiOperation({ summary: "Get the signed-in customer" })
+  @UseGuards(JwtAuthGuard)
+  @Get("me")
+  me(@CurrentUser() user: AuthUser) {
     return this.authService.getCurrentUser(user.id);
   }
 
@@ -113,6 +137,11 @@ export class AuthController {
     limit: 5,
     windowMs: 15 * 60 * 1000,
     identity: "user",
+  })
+  @AuthenticatedApi()
+  @ApiOperation({
+    summary: "Change the signed-in customer's password",
+    description: "A successful change revokes every active session.",
   })
   @UseGuards(JwtAuthGuard)
   @Patch("change-password")
@@ -127,12 +156,17 @@ export class AuthController {
     );
   }
 
+  @AuthenticatedApi()
+  @ApiOperation({ summary: "List active sessions" })
   @UseGuards(JwtAuthGuard)
   @Get("sessions")
   sessions(@CurrentUser() user: AuthUser) {
     return this.authService.listSessions(user.id);
   }
 
+  @AuthenticatedApi()
+  @ApiOperation({ summary: "Revoke an active session" })
+  @ApiNoContentResponse({ description: "The session was revoked." })
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete("sessions/:id")

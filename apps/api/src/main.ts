@@ -4,16 +4,26 @@ import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { NextFunction, Request, Response } from "express";
 import { AppModule } from "./app.module";
+import {
+  setupSwagger,
+  SWAGGER_JSON_PATH,
+  SWAGGER_PATH,
+} from "./documentation/swagger";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 
   app.disable("x-powered-by");
-  app.use((_request: Request, response: Response, next: NextFunction) => {
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    const documentationRequest =
+      request.path.startsWith(`/${SWAGGER_PATH}`) ||
+      request.path === `/${SWAGGER_JSON_PATH}`;
     response.setHeader(
       "Content-Security-Policy",
-      "default-src 'none'; frame-ancestors 'none'",
+      documentationRequest
+        ? "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'none'"
+        : "default-src 'none'; frame-ancestors 'none'",
     );
     response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
     response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
@@ -56,6 +66,7 @@ async function bootstrap(): Promise<void> {
       transform: true,
     }),
   );
+  setupSwagger(app);
 
   await app.listen(config.getOrThrow<string>("API_PORT"));
 }
