@@ -76,6 +76,9 @@ enum AuditAction {
   ACCOUNT_FROZEN
   ACCOUNT_UNFROZEN
   DEMO_DEPOSIT_COMPLETED
+  PASSWORD_CHANGED
+  PROFILE_UPDATED
+  SESSION_REVOKED
 }
 
 enum EmailJobType {
@@ -282,6 +285,8 @@ model RefreshToken {
   userId    String
   tokenHash String   @unique
   expiresAt DateTime
+  userAgent String?  @db.VarChar(255)
+  ipAddress String?  @db.VarChar(64)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

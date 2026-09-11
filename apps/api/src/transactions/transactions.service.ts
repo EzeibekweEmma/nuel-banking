@@ -24,6 +24,12 @@ import { ClientFraudHints, FraudTransactionClient } from "../fraud/fraud.types";
 import { FraudService } from "../fraud/fraud.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateTransferDto } from "./dto/create-transfer.dto";
+import { CustomerTransactionQueryDto } from "./dto/customer-transaction-query.dto";
+import {
+  createStatementCsv,
+  createStatementPdf,
+  StatementRow,
+} from "./statement-export";
 import {
   TransactionVerificationDelivery,
   TransactionVerificationMailer,
@@ -536,31 +542,149 @@ export class TransactionsService {
   }
 
   async list(userId: string) {
+    return this.customerActivity(userId, {});
+  }
+
+  async listPage(userId: string, query: CustomerTransactionQueryDto) {
+    const items = await this.customerActivity(userId, query);
+    const start = (query.page - 1) * query.limit;
+    const moneyIn = items
+      .filter(
+        (item) =>
+          item.direction === "CREDIT" &&
+          item.status === TransactionStatus.COMPLETED,
+      )
+      .reduce((total, item) => total.plus(item.amount), new Prisma.Decimal(0));
+    const moneyOut = items
+      .filter(
+        (item) =>
+          item.direction === "DEBIT" &&
+          item.status === TransactionStatus.COMPLETED,
+      )
+      .reduce((total, item) => total.plus(item.amount), new Prisma.Decimal(0));
+    return {
+      data: items.slice(start, start + query.limit),
+      total: items.length,
+      page: query.page,
+      limit: query.limit,
+      totalPages: Math.max(1, Math.ceil(items.length / query.limit)),
+      summary: {
+        moneyIn: moneyIn.toFixed(2),
+        moneyOut: moneyOut.toFixed(2),
+      },
+    };
+  }
+
+  async exportStatement(
+    userId: string,
+    format: string,
+    query: CustomerTransactionQueryDto,
+  ) {
+    if (format !== "csv" && format !== "pdf") {
+      throw new BadRequestException("Statement format must be csv or pdf");
+    }
+    const account = await this.prisma.account.findUnique({
+      where: { userId },
+      select: {
+        accountNumber: true,
+        currency: true,
+        user: { select: { firstName: true, lastName: true } },
+      },
+    });
+    if (!account) throw new NotFoundException("Bank account not found");
+    const items = await this.customerActivity(userId, query);
+    const rows: StatementRow[] = items.map((item) => ({
+      date: item.createdAt,
+      type: item.kind,
+      direction: item.direction,
+      description:
+        item.description || item.counterparty.name || "Account activity",
+      reference: item.reference,
+      status: item.status,
+      amount: item.amount.toFixed(2),
+      balanceAfter: item.balanceAfter?.toFixed(2) ?? "",
+    }));
+    const generatedAt = new Date();
+    const metadata = {
+      customerName: `${account.user.firstName} ${account.user.lastName}`,
+      accountNumber: account.accountNumber,
+      currency: account.currency,
+      generatedAt,
+      periodLabel:
+        query.from || query.to
+          ? `${query.from ?? "Account opening"} to ${query.to ?? generatedAt.toISOString().slice(0, 10)}`
+          : "All available activity",
+    };
+    const fileName = `nuel-statement-${generatedAt.toISOString().slice(0, 10)}.${format}`;
+    return format === "csv"
+      ? {
+          data: createStatementCsv(metadata, rows),
+          fileName,
+          mimeType: "text/csv; charset=utf-8",
+        }
+      : {
+          data: createStatementPdf(metadata, rows),
+          fileName,
+          mimeType: "application/pdf",
+        };
+  }
+
+  private async customerActivity(
+    userId: string,
+    filters: Pick<
+      CustomerTransactionQueryDto,
+      "status" | "direction" | "query" | "from" | "to"
+    >,
+  ) {
     const account = await this.prisma.account.findUnique({
       where: { userId },
       select: { id: true },
     });
     if (!account) throw new NotFoundException("Bank account not found");
 
+    const createdAt = this.activityDateFilter(filters.from, filters.to);
+    const ownership: Prisma.TransactionWhereInput =
+      filters.direction === "DEBIT"
+        ? { sourceAccountId: account.id }
+        : filters.direction === "CREDIT"
+          ? {
+              destinationAccountId: account.id,
+              status: TransactionStatus.COMPLETED,
+            }
+          : {
+              OR: [
+                { sourceAccountId: account.id },
+                {
+                  destinationAccountId: account.id,
+                  status: TransactionStatus.COMPLETED,
+                },
+              ],
+            };
+    const includeDeposits =
+      filters.direction !== "DEBIT" &&
+      (!filters.status || filters.status === TransactionStatus.COMPLETED);
+
     const [transfers, deposits] = await Promise.all([
       this.prisma.transaction.findMany({
         where: {
-          OR: [
-            { sourceAccountId: account.id },
-            {
-              destinationAccountId: account.id,
-              status: TransactionStatus.COMPLETED,
-            },
-          ],
+          AND: [ownership],
+          status: filters.status,
+          createdAt,
         },
         include: customerTransferInclude,
       }),
-      this.prisma.depositTransaction.findMany({
-        where: { accountId: account.id, status: TransactionStatus.COMPLETED },
-      }),
+      includeDeposits
+        ? this.prisma.depositTransaction.findMany({
+            where: {
+              accountId: account.id,
+              status: TransactionStatus.COMPLETED,
+              createdAt,
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
-    return [
+    const items = [
       ...transfers.map((transaction) =>
         this.toCustomerTransfer(transaction, account.id),
       ),
@@ -568,6 +692,49 @@ export class TransactionsService {
     ].sort(
       (first, second) => second.createdAt.getTime() - first.createdAt.getTime(),
     );
+    const search = filters.query?.trim().toLowerCase();
+    if (!search) return items;
+    return items.filter((item) =>
+      [
+        item.reference,
+        item.description,
+        item.kind,
+        item.direction,
+        item.status,
+        item.counterparty.name,
+        item.counterparty.accountNumber,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLowerCase().includes(search)),
+    );
+  }
+
+  private activityDateFilter(
+    from?: string,
+    to?: string,
+  ): Prisma.DateTimeFilter | undefined {
+    if (!from && !to) return undefined;
+    const filter: Prisma.DateTimeFilter = {};
+    if (from) filter.gte = new Date(from);
+    if (to) {
+      const end = new Date(to);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+        end.setUTCDate(end.getUTCDate() + 1);
+        filter.lt = end;
+      } else {
+        filter.lte = end;
+      }
+    }
+    if (
+      filter.gte instanceof Date &&
+      ((filter.lt instanceof Date && filter.gte >= filter.lt) ||
+        (filter.lte instanceof Date && filter.gte > filter.lte))
+    ) {
+      throw new BadRequestException(
+        "Statement start date must be before end date",
+      );
+    }
+    return filter;
   }
 
   async getDetail(userId: string, transactionId: string) {

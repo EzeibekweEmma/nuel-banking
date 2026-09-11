@@ -1,6 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 const ACCESS_TOKEN_KEY = "banking_access_token";
 const REFRESH_TOKEN_KEY = "banking_refresh_token";
+const SESSION_ID_KEY = "banking_session_id";
 
 export class ApiError extends Error {
   constructor(
@@ -13,9 +14,12 @@ export class ApiError extends Error {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  sessionId: string;
   emailVerificationRequired: boolean;
 }
-type StoredTokens = Pick<AuthTokens, "accessToken" | "refreshToken">;
+type StoredTokens = Pick<AuthTokens, "accessToken" | "refreshToken"> & {
+  sessionId?: string;
+};
 export interface PasswordResetRequest {
   message: string;
   resetUrl?: string;
@@ -98,6 +102,13 @@ export interface Notification {
   isRead: boolean;
   createdAt: string;
 }
+export interface ActiveSession {
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
 export interface DepositTransaction {
   id: string;
   amount: string;
@@ -123,6 +134,20 @@ export interface PageResult<T> {
   total: number;
   page: number;
   limit: number;
+  totalPages?: number;
+}
+export interface TransactionPageResult extends PageResult<Transaction> {
+  totalPages: number;
+  summary: { moneyIn: string; moneyOut: string };
+}
+export interface TransactionFilters {
+  page?: number;
+  limit?: number;
+  status?: string;
+  direction?: string;
+  query?: string;
+  from?: string;
+  to?: string;
 }
 export interface AdminTransaction extends Transaction {
   sourceAccount: {
@@ -176,10 +201,17 @@ function getTokens(): StoredTokens | null {
 export function saveTokens(tokens: StoredTokens): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+  if (tokens.sessionId) localStorage.setItem(SESSION_ID_KEY, tokens.sessionId);
 }
 export function clearTokens(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(SESSION_ID_KEY);
+}
+export function getCurrentSessionId(): string | null {
+  return typeof window === "undefined"
+    ? null
+    : localStorage.getItem(SESSION_ID_KEY);
 }
 export function isAuthenticated(): boolean {
   return getTokens() !== null;
@@ -245,6 +277,37 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
+function transactionQuery(filters: TransactionFilters = {}): string {
+  const parameters = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== "" && value !== "ALL") {
+      parameters.set(key, String(value));
+    }
+  });
+  const query = parameters.toString();
+  return query ? `?${query}` : "";
+}
+
+async function requestBlob(path: string, retry = true): Promise<Blob> {
+  const accessToken = getTokens()?.accessToken;
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+  if (response.status === 401 && retry && (await refreshAccessToken())) {
+    return requestBlob(path, false);
+  }
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      message?: string | string[];
+    };
+    const message = Array.isArray(body.message)
+      ? body.message.join(", ")
+      : (body.message ?? "Unable to download the statement");
+    throw new ApiError(message, response.status);
+  }
+  return response.blob();
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<AuthTokens>("/auth/login", {
@@ -291,6 +354,19 @@ export const api = {
       : Promise.resolve();
   },
   me: () => request<User>("/auth/me"),
+  updateProfile: (data: { firstName: string; lastName: string }) =>
+    request<User>("/users/me", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ message: string }>("/auth/change-password", {
+      method: "PATCH",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  sessions: () => request<ActiveSession[]>("/auth/sessions"),
+  revokeSession: (id: string) =>
+    request<void>(`/auth/sessions/${id}`, { method: "DELETE" }),
   account: () => request<Account>("/accounts/me"),
   balance: () =>
     request<{ balance: string; currency: string }>("/accounts/me/balance"),
@@ -305,7 +381,12 @@ export const api = {
       body: JSON.stringify({ amount }),
     }),
   deposits: () => request<DepositTransaction[]>("/funding/deposits"),
-  transactions: () => request<Transaction[]>("/transactions"),
+  transactions: (filters: TransactionFilters = {}) =>
+    request<TransactionPageResult>(`/transactions${transactionQuery(filters)}`),
+  downloadStatement: (format: "csv" | "pdf", filters: TransactionFilters) =>
+    requestBlob(
+      `/transactions/statement/${format}${transactionQuery(filters)}`,
+    ),
   transaction: (id: string) => request<Transaction>(`/transactions/${id}`),
   transfer: (
     data: {
@@ -340,6 +421,10 @@ export const api = {
   notifications: () => request<Notification[]>("/notifications"),
   markNotificationRead: (id: string) =>
     request<void>(`/notifications/${id}/read`, { method: "PATCH" }),
+  markAllNotificationsRead: () =>
+    request<{ updated: number }>("/notifications/read-all", {
+      method: "PATCH",
+    }),
   adminCustomers: (page = 1) =>
     request<PageResult<AdminCustomer>>(`/admin/customers?page=${page}`),
   freezeAccount: (id: string, reason: string) =>

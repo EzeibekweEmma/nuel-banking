@@ -73,6 +73,29 @@ export function CustomerShell({ children }: { children: ReactNode }) {
 
   useEffect(() => setMenuOpen(false), [pathname]);
 
+  useEffect(() => {
+    const updateUnread = () => {
+      void api
+        .notifications()
+        .then((items) => setUnread(items.filter((item) => !item.isRead).length))
+        .catch(() => undefined);
+    };
+    window.addEventListener("notifications-updated", updateUnread);
+    return () =>
+      window.removeEventListener("notifications-updated", updateUnread);
+  }, []);
+
+  useEffect(() => {
+    const updateProfile = () => {
+      void api
+        .me()
+        .then(setUser)
+        .catch(() => undefined);
+    };
+    window.addEventListener("profile-updated", updateProfile);
+    return () => window.removeEventListener("profile-updated", updateProfile);
+  }, []);
+
   async function logout(): Promise<void> {
     await api.logout().catch(() => undefined);
     clearTokens();

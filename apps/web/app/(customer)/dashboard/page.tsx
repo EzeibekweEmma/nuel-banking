@@ -43,10 +43,10 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([api.account(), api.transactions()])
-      .then(([nextAccount, nextTransactions]) => {
+    Promise.all([api.account(), api.transactions({ limit: 20 })])
+      .then(([nextAccount, transactionPage]) => {
         setAccount(nextAccount);
-        setTransactions(nextTransactions);
+        setTransactions(transactionPage.data);
       })
       .catch((reason: Error) => setError(reason.message));
   }, []);

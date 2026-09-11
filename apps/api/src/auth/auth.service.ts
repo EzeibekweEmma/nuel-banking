@@ -2,13 +2,20 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import { AccountType, EmailJobType, User, UserRole } from "@prisma/client";
+import {
+  AccountType,
+  AuditAction,
+  EmailJobType,
+  User,
+  UserRole,
+} from "@prisma/client";
 import * as bcrypt from "bcrypt";
-import { createHash, randomBytes, randomInt } from "crypto";
+import { createHash, randomBytes, randomInt, randomUUID } from "crypto";
 import { EmailOutboxService } from "../email/email-outbox.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthUser } from "./auth-user.interface";
@@ -19,11 +26,17 @@ interface TokenPayload {
   sub: string;
   email: string;
   role: UserRole;
+  sid: string;
 }
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  sessionId: string;
   emailVerificationRequired: boolean;
+}
+export interface SessionContext {
+  userAgent?: string;
+  ipAddress?: string;
 }
 export interface PasswordResetRequestResult {
   message: string;
@@ -47,7 +60,10 @@ export class AuthService {
     private readonly emailOutbox: EmailOutboxService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<AuthTokens> {
+  async register(
+    dto: RegisterDto,
+    sessionContext: SessionContext = {},
+  ): Promise<AuthTokens> {
     const email = dto.email.toLowerCase();
     if (await this.prisma.user.findUnique({ where: { email } }))
       throw new ConflictException("Email address is already registered");
@@ -100,10 +116,13 @@ export class AuthService {
       return createdUser;
     });
 
-    return this.issueTokens(user);
+    return this.issueTokens(user, sessionContext);
   }
 
-  async login(dto: LoginDto): Promise<AuthTokens> {
+  async login(
+    dto: LoginDto,
+    sessionContext: SessionContext = {},
+  ): Promise<AuthTokens> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() },
     });
@@ -125,10 +144,13 @@ export class AuthService {
         entityId: user.id,
       },
     });
-    return this.issueTokens(user);
+    return this.issueTokens(user, sessionContext);
   }
 
-  async refresh(refreshToken: string): Promise<AuthTokens> {
+  async refresh(
+    refreshToken: string,
+    sessionContext: SessionContext = {},
+  ): Promise<AuthTokens> {
     const payload = await this.verifyRefreshToken(refreshToken);
     const token = await this.findStoredToken(payload.sub, refreshToken);
     if (!token) throw new UnauthorizedException("Invalid refresh token");
@@ -141,7 +163,7 @@ export class AuthService {
     });
     if (consumed.count !== 1)
       throw new UnauthorizedException("Refresh token has already been used");
-    return this.issueTokens(user);
+    return this.issueTokens(user, sessionContext);
   }
 
   async logout(userId: string, refreshToken: string): Promise<void> {
@@ -407,11 +429,100 @@ export class AuthService {
     return user;
   }
 
-  private async issueTokens(user: User): Promise<AuthTokens> {
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true },
+    });
+    if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      throw new BadRequestException("Current password is incorrect");
+    }
+    if (await bcrypt.compare(newPassword, user.passwordHash)) {
+      throw new BadRequestException(
+        "New password must be different from your current password",
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      });
+      await tx.refreshToken.deleteMany({ where: { userId } });
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: AuditAction.PASSWORD_CHANGED,
+          entityType: "User",
+          entityId: userId,
+        },
+      });
+      await tx.notification.create({
+        data: {
+          userId,
+          type: "SECURITY_ALERT",
+          title: "Password changed",
+          message:
+            "Your password was changed and all active sessions were signed out.",
+        },
+      });
+    });
+    return {
+      message: "Password changed. Sign in again with your new password.",
+    };
+  }
+
+  async listSessions(userId: string) {
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId, expiresAt: { lte: new Date() } },
+    });
+    return this.prisma.refreshToken.findMany({
+      where: { userId, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        userAgent: true,
+        ipAddress: true,
+        createdAt: true,
+        expiresAt: true,
+      },
+    });
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const revoked = await tx.refreshToken.deleteMany({
+        where: { id: sessionId, userId },
+      });
+      if (revoked.count !== 1) {
+        throw new NotFoundException("Active session not found");
+      }
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: AuditAction.SESSION_REVOKED,
+          entityType: "RefreshToken",
+          entityId: sessionId,
+        },
+      });
+    });
+  }
+
+  private async issueTokens(
+    user: User,
+    sessionContext: SessionContext,
+  ): Promise<AuthTokens> {
+    const sessionId = randomUUID();
     const payload: TokenPayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
+      sid: sessionId,
     };
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.config.getOrThrow<string>("JWT_ACCESS_SECRET"),
@@ -423,14 +534,18 @@ export class AuthService {
     });
     await this.prisma.refreshToken.create({
       data: {
+        id: sessionId,
         userId: user.id,
         tokenHash: await bcrypt.hash(refreshToken, 12),
         expiresAt: new Date(Date.now() + 604800000),
+        userAgent: sessionContext.userAgent,
+        ipAddress: sessionContext.ipAddress,
       },
     });
     return {
       accessToken,
       refreshToken,
+      sessionId,
       emailVerificationRequired: user.emailVerifiedAt === null,
     };
   }

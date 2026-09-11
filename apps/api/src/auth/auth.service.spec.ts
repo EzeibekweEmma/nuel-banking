@@ -25,6 +25,7 @@ describe("AuthService", () => {
       delete: jest.fn(),
       deleteMany: jest.fn(),
     },
+    notification: { create: jest.fn() },
     passwordResetToken: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -69,15 +70,19 @@ describe("AuthService", () => {
     prisma.emailVerificationToken.create.mockResolvedValue({});
     prisma.auditLog.createMany.mockResolvedValue({ count: 2 });
     await expect(
-      service.register({
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        password: "SecurePassword123",
-      }),
+      service.register(
+        {
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          password: "SecurePassword123",
+        },
+        { userAgent: "Test Browser", ipAddress: "127.0.0.1" },
+      ),
     ).resolves.toEqual({
       accessToken: "access",
       refreshToken: "refresh",
+      sessionId: expect.any(String),
       emailVerificationRequired: true,
     });
     expect(prisma.user.create.mock.calls[0][0].data.passwordHash).not.toBe(
@@ -91,6 +96,14 @@ describe("AuthService", () => {
       expect.objectContaining({ tokenHash: verificationHash }),
     );
     expect(prisma.refreshToken.create).toHaveBeenCalled();
+    expect(prisma.refreshToken.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userAgent: "Test Browser",
+          ipAddress: "127.0.0.1",
+        }),
+      }),
+    );
   });
 
   it("verifies an email with a valid one-time token", async () => {
@@ -264,6 +277,56 @@ describe("AuthService", () => {
     );
     expect(prisma.refreshToken.deleteMany).toHaveBeenCalledWith({
       where: { userId: user.id },
+    });
+  });
+
+  it("changes the password and revokes every active session", async () => {
+    const passwordHash = await bcrypt.hash("CurrentPassword123", 4);
+    prisma.user.findUnique.mockResolvedValue({ id: user.id, passwordHash });
+    prisma.user.update.mockResolvedValue(user);
+    prisma.refreshToken.deleteMany.mockResolvedValue({ count: 3 });
+    prisma.auditLog.create.mockResolvedValue({});
+    prisma.notification.create.mockResolvedValue({});
+
+    await expect(
+      service.changePassword(
+        user.id,
+        "CurrentPassword123",
+        "DifferentPassword456",
+      ),
+    ).resolves.toEqual({
+      message: expect.stringContaining("Password changed"),
+    });
+    expect(prisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+      where: { userId: user.id },
+    });
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ title: "Password changed" }),
+    });
+  });
+
+  it("lists active sessions and revokes only a session owned by the user", async () => {
+    const sessions = [
+      {
+        id: "session-1",
+        userAgent: "Browser",
+        ipAddress: "127.0.0.1",
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    ];
+    prisma.refreshToken.findMany.mockResolvedValue(sessions);
+    prisma.refreshToken.deleteMany
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 });
+    prisma.auditLog.create.mockResolvedValue({});
+
+    await expect(service.listSessions(user.id)).resolves.toBe(sessions);
+    await expect(
+      service.revokeSession(user.id, "session-1"),
+    ).resolves.toBeUndefined();
+    expect(prisma.refreshToken.deleteMany).toHaveBeenLastCalledWith({
+      where: { id: "session-1", userId: user.id },
     });
   });
 });

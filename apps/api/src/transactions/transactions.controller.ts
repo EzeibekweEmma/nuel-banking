@@ -6,6 +6,8 @@ import {
   Headers,
   Param,
   Post,
+  Query,
+  StreamableFile,
   UseGuards,
 } from "@nestjs/common";
 import { AuthUser } from "../auth/auth-user.interface";
@@ -15,6 +17,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RateLimit } from "../rate-limit/rate-limit.decorator";
 import { createClientFraudHints } from "../fraud/client-fraud-hints";
 import { CreateTransferDto } from "./dto/create-transfer.dto";
+import { CustomerTransactionQueryDto } from "./dto/customer-transaction-query.dto";
 import { VerifyTransferDto } from "./dto/verify-transfer.dto";
 import { TransactionsService } from "./transactions.service";
 
@@ -74,8 +77,40 @@ export class TransactionsController {
   resendCode(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.transactionsService.resendVerificationCode(user.id, id);
   }
-  @Get() list(@CurrentUser() user: AuthUser) {
-    return this.transactionsService.list(user.id);
+  @RateLimit({
+    bucket: "transaction-history",
+    limit: 60,
+    windowMs: 60 * 1000,
+    identity: "user",
+  })
+  @Get()
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query() query: CustomerTransactionQueryDto,
+  ) {
+    return this.transactionsService.listPage(user.id, query);
+  }
+  @RateLimit({
+    bucket: "statement-export",
+    limit: 5,
+    windowMs: 10 * 60 * 1000,
+    identity: "user",
+  })
+  @Get("statement/:format")
+  async statement(
+    @CurrentUser() user: AuthUser,
+    @Param("format") format: string,
+    @Query() query: CustomerTransactionQueryDto,
+  ): Promise<StreamableFile> {
+    const statement = await this.transactionsService.exportStatement(
+      user.id,
+      format.toLowerCase(),
+      query,
+    );
+    return new StreamableFile(statement.data, {
+      type: statement.mimeType,
+      disposition: `attachment; filename="${statement.fileName}"`,
+    });
   }
   @Get(":id") detail(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.transactionsService.getDetail(user.id, id);
