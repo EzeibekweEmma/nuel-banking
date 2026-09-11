@@ -10,25 +10,60 @@ import { RegisterDto } from "./dto/register.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { VerifyEmailDto } from "./dto/verify-email.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { RateLimit } from "../rate-limit/rate-limit.decorator";
 
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
-  @Post("register") register(@Body() dto: RegisterDto): Promise<AuthTokens> {
+  @RateLimit({
+    bucket: "auth-register",
+    limit: 3,
+    windowMs: 60 * 60 * 1000,
+    identity: "ip",
+  })
+  @Post("register")
+  register(@Body() dto: RegisterDto): Promise<AuthTokens> {
     return this.authService.register(dto);
   }
-  @Post("login") login(@Body() dto: LoginDto): Promise<AuthTokens> {
+  @RateLimit({
+    bucket: "auth-login",
+    limit: 5,
+    windowMs: 15 * 60 * 1000,
+    identity: "ip",
+  })
+  @Post("login")
+  login(@Body() dto: LoginDto): Promise<AuthTokens> {
     return this.authService.login(dto);
   }
-  @Post("forgot-password") forgotPassword(@Body() dto: ForgotPasswordDto) {
+  @RateLimit({
+    bucket: "auth-forgot-password",
+    limit: 3,
+    windowMs: 60 * 60 * 1000,
+    identity: "ip",
+  })
+  @Post("forgot-password")
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.requestPasswordReset(dto.email);
   }
-  @Post("reset-password") resetPassword(@Body() dto: ResetPasswordDto) {
+  @RateLimit({
+    bucket: "auth-reset-password",
+    limit: 5,
+    windowMs: 15 * 60 * 1000,
+    identity: "ip",
+  })
+  @Post("reset-password")
+  resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.password);
   }
   @Post("verify-email") verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmail(dto.token);
   }
+  @RateLimit({
+    bucket: "auth-email-verification-resend",
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+    identity: "user",
+  })
   @UseGuards(JwtAuthGuard)
   @Post("resend-email-verification")
   resendEmailVerification(@CurrentUser() user: AuthUser) {

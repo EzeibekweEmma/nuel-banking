@@ -186,6 +186,7 @@ describe("AuthService", () => {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
+      passwordResetTokens: [],
     });
     prisma.passwordResetToken.create.mockResolvedValue({});
     prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
@@ -212,6 +213,7 @@ describe("AuthService", () => {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
+      passwordResetTokens: [],
     });
     prisma.passwordResetToken.create.mockResolvedValue({});
     prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
@@ -234,6 +236,25 @@ describe("AuthService", () => {
       expect.objectContaining({ message: expect.any(String) }),
     );
     expect(emailInternals.deliverPasswordResetEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not create or email another reset token during the cooldown", async () => {
+    const delivery = jest
+      .spyOn(emailInternals, "deliverPasswordResetEmail")
+      .mockResolvedValue();
+    prisma.user.findUnique.mockResolvedValue({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      passwordResetTokens: [{ createdAt: new Date() }],
+    });
+
+    await expect(service.requestPasswordReset(user.email)).resolves.toEqual({
+      message: expect.stringContaining("If an account matches"),
+    });
+    expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    expect(delivery).not.toHaveBeenCalled();
   });
 
   it("retries password reset email delivery up to three times", async () => {

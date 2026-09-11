@@ -12,6 +12,7 @@ import { AuthUser } from "../auth/auth-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { EmailVerifiedGuard } from "../auth/email-verified.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RateLimit } from "../rate-limit/rate-limit.decorator";
 import { CreateTransferDto } from "./dto/create-transfer.dto";
 import { VerifyTransferDto } from "./dto/verify-transfer.dto";
 import { TransactionsService } from "./transactions.service";
@@ -20,7 +21,15 @@ import { TransactionsService } from "./transactions.service";
 @Controller("transactions")
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
-  @UseGuards(EmailVerifiedGuard) @Post("transfer") transfer(
+  @RateLimit({
+    bucket: "transfers",
+    limit: 10,
+    windowMs: 60 * 1000,
+    identity: "user",
+  })
+  @UseGuards(EmailVerifiedGuard)
+  @Post("transfer")
+  transfer(
     @CurrentUser() user: AuthUser,
     @Headers("idempotency-key") idempotencyKey: string | undefined,
     @Headers("x-device-fingerprint") deviceFingerprint: string | undefined,
@@ -36,17 +45,30 @@ export class TransactionsController {
       location,
     });
   }
-  @UseGuards(EmailVerifiedGuard) @Post(":id/verify") verify(
+  @RateLimit({
+    bucket: "transfer-verification",
+    limit: 10,
+    windowMs: 60 * 1000,
+    identity: "user",
+  })
+  @UseGuards(EmailVerifiedGuard)
+  @Post(":id/verify")
+  verify(
     @CurrentUser() user: AuthUser,
     @Param("id") id: string,
     @Body() dto: VerifyTransferDto,
   ) {
     return this.transactionsService.verify(user.id, id, dto.code);
   }
-  @UseGuards(EmailVerifiedGuard) @Post(":id/verification-code") resendCode(
-    @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
-  ) {
+  @RateLimit({
+    bucket: "transfer-code-resend",
+    limit: 5,
+    windowMs: 10 * 60 * 1000,
+    identity: "user",
+  })
+  @UseGuards(EmailVerifiedGuard)
+  @Post(":id/verification-code")
+  resendCode(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.transactionsService.resendVerificationCode(user.id, id);
   }
   @Get() list(@CurrentUser() user: AuthUser) {

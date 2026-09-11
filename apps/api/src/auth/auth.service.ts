@@ -44,6 +44,7 @@ const EMAIL_DELIVERY_ATTEMPTS = 4;
 const EMAIL_RETRY_DELAYS_MS = [1_000, 3_000, 9_000];
 const EMAIL_VERIFICATION_VALIDITY_MS = 24 * 60 * 60 * 1000;
 const EMAIL_VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
+const PASSWORD_RESET_REQUEST_COOLDOWN_MS = 2 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -164,9 +165,27 @@ export class AuthService {
       "If an account matches that email, we have sent password reset instructions.";
     const user = await this.prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
-      select: { id: true, email: true, firstName: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        passwordResetTokens: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
     });
     if (!user) return { message };
+
+    const latestToken = user.passwordResetTokens[0];
+    if (
+      latestToken &&
+      latestToken.createdAt.getTime() + PASSWORD_RESET_REQUEST_COOLDOWN_MS >
+        Date.now()
+    ) {
+      return { message };
+    }
 
     const token = randomBytes(32).toString("hex");
     const tokenHash = this.hashToken(token);
