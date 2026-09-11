@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { BalanceCard } from '../../../components/balance-card';
-import { ChatbotPanel } from '../../../components/chatbot-panel';
 import { Icon, IconName } from '../../../components/icons';
 import { ErrorState, LoadingState } from '../../../components/page-state';
 import { TransactionRow } from '../../../components/transaction-row';
@@ -73,7 +72,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,.65fr)]">
+      <div>
         <section className="rounded-[24px] border border-[#dce5e1] bg-white p-4 shadow-[0_12px_40px_-34px_rgba(13,56,45,.45)] sm:p-5">
           <div className="flex items-center justify-between px-2 pb-2">
             <div><h2 className="text-base font-bold text-[#18352e]">Recent activity</h2><p className="mt-1 text-xs text-[#82908d]">Your latest money movements</p></div>
@@ -84,7 +83,6 @@ export default function DashboardPage() {
             {transactions.length === 0 && <div className="grid min-h-48 place-items-center text-center"><div><span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#edf4f1] text-[#087a5b]"><Icon name="receipt" className="h-5 w-5" /></span><p className="mt-3 text-sm font-semibold text-[#38544d]">No transactions yet</p><p className="mt-1 text-xs text-[#84928e]">Your activity will show up here.</p></div></div>}
           </div>
         </section>
-        <ChatbotPanel />
       </div>
     </div>
   );

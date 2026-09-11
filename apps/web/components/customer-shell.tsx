@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
 import { api, clearTokens, isAuthenticated, User } from '../lib/api';
+import { ChatbotPanel } from './chatbot-panel';
 import { Icon, IconName } from './icons';
 
 interface NavigationItem { label: string; href: string; icon: IconName; }
@@ -142,6 +143,7 @@ export function CustomerShell({ children }: { children: ReactNode }) {
           <div className="page-enter">{children}</div>
         </main>
       </div>
+      <ChatbotPanel />
     </div>
   );
 }
