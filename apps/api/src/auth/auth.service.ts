@@ -15,6 +15,10 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AuthUser } from "./auth-user.interface";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
+import {
+  createEmailVerificationEmail,
+  TransactionalEmail,
+} from "./email-verification-email";
 import { createPasswordResetEmail } from "./password-reset-email";
 
 interface TokenPayload {
@@ -25,14 +29,21 @@ interface TokenPayload {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  emailVerificationRequired: boolean;
 }
 export interface PasswordResetRequestResult {
   message: string;
   resetUrl?: string;
 }
+export interface EmailVerificationRequestResult {
+  message: string;
+  verificationUrl?: string;
+}
 
-const PASSWORD_RESET_EMAIL_ATTEMPTS = 4;
-const PASSWORD_RESET_EMAIL_RETRY_DELAYS_MS = [1_000, 3_000, 9_000];
+const EMAIL_DELIVERY_ATTEMPTS = 4;
+const EMAIL_RETRY_DELAYS_MS = [1_000, 3_000, 9_000];
+const EMAIL_VERIFICATION_VALIDITY_MS = 24 * 60 * 60 * 1000;
+const EMAIL_VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -49,28 +60,53 @@ export class AuthService {
     if (await this.prisma.user.findUnique({ where: { email } }))
       throw new ConflictException("Email address is already registered");
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        accounts: {
-          create: {
-            accountNumber: this.createAccountNumber(),
-            type: AccountType.SAVINGS,
+    const token = randomBytes(32).toString("hex");
+    const tokenHash = this.hashToken(token);
+    const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_VALIDITY_MS);
+    const user = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          accounts: {
+            create: {
+              accountNumber: this.createAccountNumber(),
+              type: AccountType.SAVINGS,
+            },
           },
         },
-      },
+      });
+      await tx.emailVerificationToken.create({
+        data: { userId: createdUser.id, tokenHash, expiresAt },
+      });
+      await tx.auditLog.createMany({
+        data: [
+          {
+            userId: createdUser.id,
+            action: "REGISTRATION_SUCCEEDED",
+            entityType: "User",
+            entityId: createdUser.id,
+          },
+          {
+            userId: createdUser.id,
+            action: "EMAIL_VERIFICATION_REQUESTED",
+            entityType: "User",
+            entityId: createdUser.id,
+          },
+        ],
+      });
+      return createdUser;
     });
-    await this.prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        action: "REGISTRATION_SUCCEEDED",
-        entityType: "User",
-        entityId: user.id,
-      },
-    });
+
+    const verificationUrl = this.createVerificationUrl(token);
+    this.queueEmailVerificationEmail(
+      user.email,
+      user.firstName,
+      verificationUrl,
+      tokenHash,
+    );
     return this.issueTokens(user);
   }
 
@@ -133,7 +169,7 @@ export class AuthService {
     if (!user) return { message };
 
     const token = randomBytes(32).toString("hex");
-    const tokenHash = this.hashResetToken(token);
+    const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     await this.prisma.$transaction(async (tx) => {
@@ -172,7 +208,7 @@ export class AuthService {
     token: string,
     password: string,
   ): Promise<{ message: string }> {
-    const tokenHash = this.hashResetToken(token);
+    const tokenHash = this.hashToken(token);
     const resetToken = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash },
       select: { id: true, userId: true, expiresAt: true },
@@ -222,9 +258,128 @@ export class AuthService {
     };
   }
 
-  async getCurrentUser(
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    const tokenHash = this.hashToken(token);
+    const verificationToken =
+      await this.prisma.emailVerificationToken.findUnique({
+        where: { tokenHash },
+        select: { id: true, userId: true, expiresAt: true },
+      });
+    if (!verificationToken || verificationToken.expiresAt <= new Date()) {
+      if (verificationToken) {
+        await this.prisma.emailVerificationToken.deleteMany({
+          where: { id: verificationToken.id },
+        });
+      }
+      throw new BadRequestException(
+        "This email verification link is invalid or has expired",
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const consumed = await tx.emailVerificationToken.deleteMany({
+        where: { id: verificationToken.id, expiresAt: { gt: new Date() } },
+      });
+      if (consumed.count !== 1) {
+        throw new BadRequestException(
+          "This email verification link is invalid or has expired",
+        );
+      }
+      await tx.user.update({
+        where: { id: verificationToken.userId },
+        data: { emailVerifiedAt: new Date() },
+      });
+      await tx.emailVerificationToken.deleteMany({
+        where: { userId: verificationToken.userId },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: verificationToken.userId,
+          action: "EMAIL_VERIFIED",
+          entityType: "User",
+          entityId: verificationToken.userId,
+        },
+      });
+    });
+
+    return {
+      message:
+        "Your email is verified. All banking features are now available.",
+    };
+  }
+
+  async resendEmailVerification(
     userId: string,
-  ): Promise<AuthUser & { firstName: string; lastName: string }> {
+  ): Promise<EmailVerificationRequestResult> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        emailVerifiedAt: true,
+        emailVerificationTokens: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
+    });
+    if (!user) throw new UnauthorizedException();
+    if (user.emailVerifiedAt) {
+      return { message: "Your email address is already verified." };
+    }
+
+    const latestToken = user.emailVerificationTokens[0];
+    if (
+      latestToken &&
+      latestToken.createdAt.getTime() + EMAIL_VERIFICATION_RESEND_COOLDOWN_MS >
+        Date.now()
+    ) {
+      return {
+        message:
+          "A verification email was sent recently. Please wait a minute before requesting another.",
+      };
+    }
+
+    const token = randomBytes(32).toString("hex");
+    const tokenHash = this.hashToken(token);
+    const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_VALIDITY_MS);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.emailVerificationToken.deleteMany({ where: { userId } });
+      await tx.emailVerificationToken.create({
+        data: { userId, tokenHash, expiresAt },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: "EMAIL_VERIFICATION_REQUESTED",
+          entityType: "User",
+          entityId: userId,
+        },
+      });
+    });
+
+    const verificationUrl = this.createVerificationUrl(token);
+    this.queueEmailVerificationEmail(
+      user.email,
+      user.firstName,
+      verificationUrl,
+      tokenHash,
+    );
+    const message = "We sent a new verification link to your email address.";
+    return process.env.NODE_ENV !== "production"
+      ? { message, verificationUrl }
+      : { message };
+  }
+
+  async getCurrentUser(userId: string): Promise<
+    AuthUser & {
+      firstName: string;
+      lastName: string;
+      emailVerifiedAt: Date | null;
+    }
+  > {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -233,6 +388,7 @@ export class AuthService {
         role: true,
         firstName: true,
         lastName: true,
+        emailVerifiedAt: true,
       },
     });
     if (!user) throw new UnauthorizedException();
@@ -260,11 +416,22 @@ export class AuthService {
         expiresAt: new Date(Date.now() + 604800000),
       },
     });
-    return { accessToken, refreshToken };
+    return {
+      accessToken,
+      refreshToken,
+      emailVerificationRequired: user.emailVerifiedAt === null,
+    };
   }
 
-  private hashResetToken(token: string): string {
+  private hashToken(token: string): string {
     return createHash("sha256").update(token).digest("hex");
+  }
+
+  private createVerificationUrl(token: string): string {
+    const frontendUrl = (
+      this.config.get<string>("FRONTEND_URL") ?? "http://localhost:3000"
+    ).replace(/\/$/, "");
+    return frontendUrl + "/verify-email?token=" + encodeURIComponent(token);
   }
 
   private queuePasswordResetEmail(
@@ -290,12 +457,37 @@ export class AuthService {
     });
   }
 
+  private queueEmailVerificationEmail(
+    email: string,
+    firstName: string,
+    verificationUrl: string,
+    tokenHash: string,
+  ): void {
+    if (!this.hasSmtpConfiguration()) {
+      this.logger.warn(
+        "Email verification message was not queued because SMTP is not configured.",
+      );
+      return;
+    }
+
+    void this.deliverEmailVerificationEmail(
+      email,
+      firstName,
+      verificationUrl,
+      tokenHash,
+    ).catch(() => {
+      this.logger.error("Background email verification delivery failed.");
+    });
+  }
+
   private hasSmtpConfiguration(): boolean {
     const host = this.config.get<string>("SMTP_HOST");
     const from = this.config.get<string>("EMAIL_FROM");
     const user = this.config.get<string>("SMTP_USER");
     const password = this.config.get<string>("SMTP_PASSWORD");
-    return Boolean(host && from && ((!user && !password) || (user && password)));
+    return Boolean(
+      host && from && ((!user && !password) || (user && password)),
+    );
   }
 
   private async deliverPasswordResetEmail(
@@ -304,31 +496,60 @@ export class AuthService {
     resetUrl: string,
     tokenHash: string,
   ): Promise<void> {
-    for (let attempt = 1; attempt <= PASSWORD_RESET_EMAIL_ATTEMPTS; attempt += 1) {
-      if (attempt > 1) {
+    await this.deliverEmailWithRetry(
+      "Password reset",
+      async () => {
         const activeToken = await this.prisma.passwordResetToken.findUnique({
           where: { tokenHash },
           select: { id: true },
         });
-        if (!activeToken) return;
-      }
+        return Boolean(activeToken);
+      },
+      () => this.sendPasswordResetEmail(email, firstName, resetUrl),
+    );
+  }
 
-      if (await this.sendPasswordResetEmail(email, firstName, resetUrl)) {
+  private async deliverEmailVerificationEmail(
+    email: string,
+    firstName: string,
+    verificationUrl: string,
+    tokenHash: string,
+  ): Promise<void> {
+    await this.deliverEmailWithRetry(
+      "Email verification",
+      async () => {
+        const activeToken = await this.prisma.emailVerificationToken.findUnique(
+          {
+            where: { tokenHash },
+            select: { id: true },
+          },
+        );
+        return Boolean(activeToken);
+      },
+      () => this.sendEmailVerificationEmail(email, firstName, verificationUrl),
+    );
+  }
+
+  private async deliverEmailWithRetry(
+    label: string,
+    isTokenActive: () => Promise<boolean>,
+    send: () => Promise<boolean>,
+  ): Promise<void> {
+    for (let attempt = 1; attempt <= EMAIL_DELIVERY_ATTEMPTS; attempt += 1) {
+      if (attempt > 1 && !(await isTokenActive())) return;
+      if (await send()) {
         if (attempt > 1) {
-          this.logger.log(
-            `Password reset email delivered on attempt ${attempt}.`,
-          );
+          this.logger.log(`${label} email delivered on attempt ${attempt}.`);
         }
         return;
       }
-
-      if (attempt < PASSWORD_RESET_EMAIL_ATTEMPTS) {
-        await this.wait(PASSWORD_RESET_EMAIL_RETRY_DELAYS_MS[attempt - 1]);
+      if (attempt < EMAIL_DELIVERY_ATTEMPTS) {
+        await this.wait(EMAIL_RETRY_DELAYS_MS[attempt - 1]);
       }
     }
 
     this.logger.error(
-      `Password reset email delivery failed after ${PASSWORD_RESET_EMAIL_ATTEMPTS} attempts.`,
+      `${label} email delivery failed after ${EMAIL_DELIVERY_ATTEMPTS} attempts.`,
     );
   }
 
@@ -341,6 +562,30 @@ export class AuthService {
     firstName: string,
     resetUrl: string,
   ): Promise<boolean> {
+    return this.sendTransactionalEmail(
+      email,
+      createPasswordResetEmail(firstName, resetUrl),
+      "Password reset",
+    );
+  }
+
+  private async sendEmailVerificationEmail(
+    email: string,
+    firstName: string,
+    verificationUrl: string,
+  ): Promise<boolean> {
+    return this.sendTransactionalEmail(
+      email,
+      createEmailVerificationEmail(firstName, verificationUrl),
+      "Email verification",
+    );
+  }
+
+  private async sendTransactionalEmail(
+    email: string,
+    message: TransactionalEmail,
+    label: string,
+  ): Promise<boolean> {
     const host = this.config.get<string>("SMTP_HOST");
     const port = Number(this.config.get<string>("SMTP_PORT") ?? "587");
     const secure =
@@ -351,18 +596,17 @@ export class AuthService {
     if (!host || !from) return false;
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
       this.logger.warn(
-        "Password reset email was not sent because SMTP_PORT is invalid.",
+        `${label} email was not sent because SMTP_PORT is invalid.`,
       );
       return false;
     }
     if ((user && !password) || (!user && password)) {
       this.logger.warn(
-        "Password reset email was not sent because SMTP credentials are incomplete.",
+        `${label} email was not sent because SMTP credentials are incomplete.`,
       );
       return false;
     }
 
-    const message = createPasswordResetEmail(firstName, resetUrl);
     const transport = createTransport({
       host,
       port,
@@ -389,7 +633,7 @@ export class AuthService {
         typeof error === "object" && error !== null && "code" in error
           ? String(error.code)
           : "UNKNOWN";
-      this.logger.warn(`Password reset email delivery attempt failed (${code}).`);
+      this.logger.warn(`${label} email delivery attempt failed (${code}).`);
       return false;
     } finally {
       transport.close();

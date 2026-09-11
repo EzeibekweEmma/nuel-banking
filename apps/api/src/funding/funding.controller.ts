@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { AuthUser } from "../auth/auth-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
+import { EmailVerifiedGuard } from "../auth/email-verified.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CreateDemoDepositDto } from "./dto/create-demo-deposit.dto";
 import { FundingService } from "./funding.service";
@@ -23,6 +24,7 @@ export class FundingController {
     return this.fundingService.getDemoConfiguration();
   }
 
+  @UseGuards(EmailVerifiedGuard)
   @Post("demo")
   createDemoDeposit(
     @CurrentUser() user: AuthUser,

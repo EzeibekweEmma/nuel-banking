@@ -13,7 +13,9 @@ export class ApiError extends Error {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  emailVerificationRequired: boolean;
 }
+type StoredTokens = Pick<AuthTokens, "accessToken" | "refreshToken">;
 export interface PasswordResetRequest {
   message: string;
   resetUrl?: string;
@@ -24,6 +26,7 @@ export interface User {
   firstName: string;
   lastName: string;
   role: "CUSTOMER" | "ADMIN";
+  emailVerifiedAt: string | null;
   createdAt?: string;
 }
 export interface Account {
@@ -151,13 +154,13 @@ export interface AuditLog {
   user: { email: string } | null;
 }
 
-function getTokens(): AuthTokens | null {
+function getTokens(): StoredTokens | null {
   if (typeof window === "undefined") return null;
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
   const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
   return accessToken && refreshToken ? { accessToken, refreshToken } : null;
 }
-export function saveTokens(tokens: AuthTokens): void {
+export function saveTokens(tokens: StoredTokens): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
 }
@@ -255,6 +258,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ token, password }),
     }),
+  verifyEmail: (token: string) =>
+    request<{ message: string }>("/auth/verify-email", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+  resendEmailVerification: () =>
+    request<{ message: string; verificationUrl?: string }>(
+      "/auth/resend-email-verification",
+      { method: "POST" },
+    ),
   logout: () => {
     const refreshToken = getTokens()?.refreshToken;
     return refreshToken
