@@ -51,7 +51,7 @@ export default function ProfilePage() {
           <Info label="Member since" value={formatDate(account.createdAt)} />
         </dl>
       </div>
-      <div className="rounded-[24px] border border-[#dce5e1] bg-white p-6">
+      <div className="rounded-3xl border border-[#dce5e1] bg-white p-6">
         <div className="flex items-start gap-4">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#e5f2ed] text-[#087a5b]">
             <Icon name="shield" className="h-5 w-5" />
@@ -61,12 +61,15 @@ export default function ProfilePage() {
               Account security
             </h3>
             <p className="mt-1 text-xs leading-5 text-[#74847f]">
-              Your account is protected with secure authentication and real-time
-              transfer monitoring.
+              {account.status === "FROZEN"
+                ? "Account access is temporarily restricted. Review your notifications for the reason and status updates."
+                : "Your account is protected with secure authentication and real-time transfer monitoring."}
             </p>
           </div>
-          <span className="ml-auto text-xs font-bold text-[#087a5b]">
-            Active
+          <span
+            className={`ml-auto text-xs font-bold ${account.status === "FROZEN" ? "text-blue-700" : "text-[#087a5b]"}`}
+          >
+            {account.status === "FROZEN" ? "Frozen" : "Active"}
           </span>
         </div>
         <div className="mt-5 rounded-xl bg-[#f5f8f6] p-4 text-xs leading-5 text-[#667a74]">

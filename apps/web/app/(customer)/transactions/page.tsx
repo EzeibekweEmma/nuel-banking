@@ -140,7 +140,7 @@ export default function TransactionsPage() {
           ))}
         </select>
       </div>
-      <div className="mt-5 rounded-[24px] border border-[#dce5e1] bg-white p-3 shadow-[0_14px_40px_-34px_rgba(13,56,45,.5)] sm:p-5">
+      <div className="mt-5 rounded-3xl border border-[#dce5e1] bg-white p-3 shadow-[0_14px_40px_-34px_rgba(13,56,45,.5)] sm:p-5">
         {filtered.length > 0 ? (
           <div className="divide-y divide-[#edf1ef]">
             {filtered.map((item) => (

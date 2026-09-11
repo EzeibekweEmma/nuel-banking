@@ -74,6 +74,21 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {account.status === "FROZEN" && (
+        <div className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-900">
+          <Icon name="shield" className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="text-sm font-bold">
+              Account access is temporarily restricted
+            </p>
+            <p className="mt-1 text-xs leading-5 text-blue-800">
+              You can review your balance and activity, but funding, transfers,
+              and beneficiary changes are unavailable. Check notifications for
+              details.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,.6fr)]">
         <BalanceCard account={account} />
         <section className="rounded-[28px] border border-[#dce5e1] bg-white p-6 shadow-[0_12px_40px_-32px_rgba(13,56,45,.45)]">
@@ -141,7 +156,7 @@ export default function DashboardPage() {
       </section>
 
       <div>
-        <section className="rounded-[24px] border border-[#dce5e1] bg-white p-4 shadow-[0_12px_40px_-34px_rgba(13,56,45,.45)] sm:p-5">
+        <section className="rounded-3xl border border-[#dce5e1] bg-white p-4 shadow-[0_12px_40px_-34px_rgba(13,56,45,.45)] sm:p-5">
           <div className="flex items-center justify-between px-2 pb-2">
             <div>
               <h2 className="text-base font-bold text-[#18352e]">

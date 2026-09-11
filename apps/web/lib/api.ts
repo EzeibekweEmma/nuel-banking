@@ -29,6 +29,18 @@ export interface User {
   emailVerifiedAt: string | null;
   createdAt?: string;
 }
+export interface AdminAccount {
+  id: string;
+  accountNumber: string;
+  type: string;
+  balance: string;
+  currency: string;
+  status: "ACTIVE" | "FROZEN" | "CLOSED";
+  createdAt: string;
+}
+export interface AdminCustomer extends User {
+  accounts: AdminAccount[];
+}
 export interface Account {
   id: string;
   accountNumber: string;
@@ -152,6 +164,7 @@ export interface AuditLog {
   entityId: string | null;
   createdAt: string;
   user: { email: string } | null;
+  metadata: Record<string, unknown> | null;
 }
 
 function getTokens(): StoredTokens | null {
@@ -328,7 +341,17 @@ export const api = {
   markNotificationRead: (id: string) =>
     request<void>(`/notifications/${id}/read`, { method: "PATCH" }),
   adminCustomers: (page = 1) =>
-    request<PageResult<User>>(`/admin/customers?page=${page}`),
+    request<PageResult<AdminCustomer>>(`/admin/customers?page=${page}`),
+  freezeAccount: (id: string, reason: string) =>
+    request<{ id: string; accountNumber: string; status: "FROZEN" }>(
+      `/admin/accounts/${id}/freeze`,
+      { method: "PATCH", body: JSON.stringify({ reason }) },
+    ),
+  unfreezeAccount: (id: string, reason: string) =>
+    request<{ id: string; accountNumber: string; status: "ACTIVE" }>(
+      `/admin/accounts/${id}/unfreeze`,
+      { method: "PATCH", body: JSON.stringify({ reason }) },
+    ),
   adminTransactions: (page = 1, status?: string) =>
     request<PageResult<AdminTransaction>>(
       `/admin/transactions?page=${page}${status ? `&status=${status}` : ""}`,
