@@ -26,10 +26,10 @@ export function TransactionRow({
   return (
     <Link
       href={`/transactions/${transaction.id}`}
-      className="group flex items-center gap-3 rounded-2xl px-2 py-3 transition hover:bg-[#f5f8f6] sm:gap-4 sm:px-3"
+      className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-2xl px-1 py-3 transition hover:bg-[#f5f8f6] min-[380px]:gap-3 min-[380px]:px-2 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-4 sm:px-3"
     >
       <span
-        className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-xs font-bold ${credit ? "bg-emerald-50 text-[#087a5b]" : "bg-[#edf2ef] text-[#46625a]"}`}
+        className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-[11px] font-bold min-[380px]:h-11 min-[380px]:w-11 min-[380px]:text-xs ${credit ? "bg-emerald-50 text-[#087a5b]" : "bg-[#edf2ef] text-[#46625a]"}`}
       >
         {deposit ? (
           <Icon name="wallet" className="h-5 w-5" />
@@ -59,7 +59,7 @@ export function TransactionRow({
       </span>
       <span className="shrink-0 text-right">
         <span
-          className={`block text-sm font-bold tabular-nums ${credit ? "text-[#087a5b]" : "text-[#18352e]"}`}
+          className={`block text-xs font-bold tabular-nums min-[380px]:text-sm ${credit ? "text-[#087a5b]" : "text-[#18352e]"}`}
         >
           {credit ? "+" : "−"}
           {formatMoney(transaction.amount, currency)}

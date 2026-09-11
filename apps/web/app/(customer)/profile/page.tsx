@@ -117,19 +117,19 @@ export default function ProfilePage() {
 
   return (
     <section className="max-w-4xl space-y-5">
-      <div className="rounded-3xl border border-[#dce5e1] bg-white p-6">
-        <div className="flex items-center gap-4">
-          <span className="grid h-16 w-16 place-items-center rounded-full bg-[#d8f85c] text-lg font-extrabold text-[#163b31]">
+      <div className="rounded-[22px] border border-[#dce5e1] bg-white p-4 sm:rounded-3xl sm:p-6">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#d8f85c] text-base font-extrabold text-[#163b31] sm:h-16 sm:w-16 sm:text-lg">
             {initials}
           </span>
-          <div>
+          <div className="min-w-0 flex-1">
             <h2 className="text-xl font-bold text-[#18352e]">
               {user.firstName} {user.lastName}
             </h2>
-            <p className="mt-1 text-sm text-[#788883]">{user.email}</p>
+            <p className="mt-1 break-all text-sm text-[#788883]">{user.email}</p>
           </div>
           <span
-            className={`ml-auto hidden rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide sm:block ${user.emailVerifiedAt ? "bg-[#e3f3ec] text-[#087a5b]" : "bg-amber-50 text-amber-700"}`}
+            className={`w-full rounded-full px-3 py-1 text-center text-[10px] font-bold uppercase tracking-wide min-[420px]:ml-auto min-[420px]:w-auto ${user.emailVerifiedAt ? "bg-[#e3f3ec] text-[#087a5b]" : "bg-amber-50 text-amber-700"}`}
           >
             {user.emailVerifiedAt ? "Email verified" : "Verification pending"}
           </span>
@@ -145,7 +145,7 @@ export default function ProfilePage() {
       <div className="grid gap-5 lg:grid-cols-2">
         <form
           onSubmit={(event) => void updateProfile(event)}
-          className="rounded-3xl border border-[#dce5e1] bg-white p-6"
+          className="rounded-[22px] border border-[#dce5e1] bg-white p-4 sm:rounded-3xl sm:p-6"
         >
           <h3 className="text-base font-bold text-[#28483f]">
             Personal information
@@ -188,7 +188,7 @@ export default function ProfilePage() {
           )}
           <button
             disabled={savingProfile}
-            className="mt-5 h-11 rounded-xl bg-[#087a5b] px-5 text-xs font-bold text-white hover:bg-[#06694f] disabled:opacity-60"
+            className="mt-5 h-11 w-full rounded-xl bg-[#087a5b] px-5 text-xs font-bold text-white hover:bg-[#06694f] disabled:opacity-60 sm:w-auto"
           >
             {savingProfile ? "Saving…" : "Save profile"}
           </button>
@@ -196,7 +196,7 @@ export default function ProfilePage() {
 
         <form
           onSubmit={(event) => void changePassword(event)}
-          className="rounded-3xl border border-[#dce5e1] bg-white p-6"
+          className="rounded-[22px] border border-[#dce5e1] bg-white p-4 sm:rounded-3xl sm:p-6"
         >
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e5f2ed] text-[#087a5b]">
@@ -226,14 +226,14 @@ export default function ProfilePage() {
           )}
           <button
             disabled={changingPassword}
-            className="mt-5 h-11 rounded-xl bg-[#183d33] px-5 text-xs font-bold text-white hover:bg-[#0d3027] disabled:opacity-60"
+            className="mt-5 h-11 w-full rounded-xl bg-[#183d33] px-5 text-xs font-bold text-white hover:bg-[#0d3027] disabled:opacity-60 sm:w-auto"
           >
             {changingPassword ? "Updating…" : "Update password"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-3xl border border-[#dce5e1] bg-white p-6">
+      <div className="rounded-[22px] border border-[#dce5e1] bg-white p-4 sm:rounded-3xl sm:p-6">
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#edf4f1] text-[#087a5b]">
             <Icon name="settings" className="h-5 w-5" />
@@ -268,7 +268,7 @@ export default function ProfilePage() {
                       </span>
                     )}
                   </p>
-                  <p className="mt-1 text-[11px] text-[#7b8b87]">
+                  <p className="mt-1 break-words text-[11px] text-[#7b8b87]">
                     {session.ipAddress || "IP unavailable"} · Signed in{" "}
                     {formatDate(session.createdAt, true)}
                   </p>
@@ -277,7 +277,7 @@ export default function ProfilePage() {
                   type="button"
                   disabled={revokingId === session.id}
                   onClick={() => void revokeSession(session.id)}
-                  className="h-9 rounded-xl border border-red-200 px-4 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                  className="h-10 w-full rounded-xl border border-red-200 px-4 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-60 sm:h-9 sm:w-auto"
                 >
                   {revokingId === session.id ? "Signing out…" : "Revoke"}
                 </button>

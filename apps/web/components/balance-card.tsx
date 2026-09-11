@@ -17,10 +17,10 @@ export function BalanceCard({ account }: { account: Account }) {
   }
 
   return (
-    <section className="relative min-h-[276px] overflow-hidden rounded-[28px] bg-[#0a4a39] p-6 text-white shadow-[0_22px_50px_-28px_rgba(4,50,38,.65)] sm:p-7">
+    <section className="relative min-h-[260px] overflow-hidden rounded-[24px] bg-[#0a4a39] p-4 text-white shadow-[0_22px_50px_-28px_rgba(4,50,38,.65)] min-[380px]:p-5 sm:min-h-[276px] sm:rounded-[28px] sm:p-7">
       <div className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full border-[46px] border-white/[.055]" />
       <div className="pointer-events-none absolute -bottom-24 right-20 h-52 w-52 rounded-full bg-[#d8f85c]/10 blur-2xl" />
-      <div className="relative flex h-full min-h-[224px] flex-col">
+      <div className="relative flex h-full min-h-[228px] flex-col sm:min-h-[224px]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5"><BrandMark className="h-8 w-8" /><span className="text-sm font-bold">nuel</span></div>
           <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#d8e8e3]">{account.status}</span>
@@ -31,13 +31,13 @@ export function BalanceCard({ account }: { account: Account }) {
             <p className="text-xs font-medium text-[#acd0c5]">Available balance</p>
             <button aria-label={visible ? 'Hide balance' : 'Show balance'} onClick={() => setVisible((current) => !current)} className="rounded p-1 text-[#acd0c5] transition hover:bg-white/10 hover:text-white"><Icon name={visible ? 'eye' : 'eye-off'} className="h-4 w-4" /></button>
           </div>
-          <p className="mt-2 text-[2rem] font-bold tracking-[-0.04em] sm:text-[2.35rem]">{visible ? formatMoney(account.balance, account.currency) : '••••••••'}</p>
+          <p className="mt-2 break-words text-[1.65rem] font-bold tracking-[-0.04em] min-[380px]:text-[2rem] sm:text-[2.35rem]">{visible ? formatMoney(account.balance, account.currency) : '••••••••'}</p>
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-4 pt-6">
-          <div>
+        <div className="mt-auto flex items-end justify-between gap-3 pt-6">
+          <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#83ada1]">{account.type.toLowerCase()} account</p>
-            <button onClick={() => void copyAccountNumber()} className="mt-1 flex items-center gap-2 text-sm font-semibold tracking-[0.12em] text-white hover:text-[#d8f85c]">
+            <button onClick={() => void copyAccountNumber()} className="mt-1 flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-white hover:text-[#d8f85c] min-[380px]:gap-2 min-[380px]:text-sm min-[380px]:tracking-[0.12em]">
               {account.accountNumber.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3')}
               <Icon name="copy" className="h-3.5 w-3.5" />
               <span className="sr-only">{copied ? 'Copied' : 'Copy account number'}</span>

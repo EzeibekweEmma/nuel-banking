@@ -74,10 +74,10 @@ export default function AdminOverviewPage() {
 
   return (
     <section>
-      <div className="rounded-3xl bg-[#12382e] p-6 text-white sm:flex sm:items-center sm:justify-between sm:p-8">
+      <div className="rounded-[22px] bg-[#12382e] p-4 text-white min-[380px]:p-5 sm:flex sm:items-center sm:justify-between sm:rounded-3xl sm:p-8">
         <div>
           <p className="text-xs font-semibold text-[#9fc2b7]">System status</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight">
+          <h2 className="mt-2 text-xl font-bold tracking-tight min-[380px]:text-2xl">
             Banking operations are online
           </h2>
           <p className="mt-2 text-sm text-[#a9c4bc]">

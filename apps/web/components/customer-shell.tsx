@@ -141,17 +141,17 @@ export function CustomerShell({ children }: { children: ReactNode }) {
     `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase();
 
   return (
-    <div className="min-h-screen bg-[#f3f6f4] lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
+    <div className="min-h-screen min-h-dvh bg-[#f3f6f4] lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
       {menuOpen && (
         <button
           aria-label="Close menu"
-          className="fixed inset-0 z-40 cursor-default bg-[#10231f]/45 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-[60] cursor-default bg-[#10231f]/45 backdrop-blur-sm lg:hidden"
           onClick={() => setMenuOpen(false)}
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[276px] flex-col bg-[#092d24] px-4 py-5 text-white transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:w-auto lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-[70] flex w-[min(276px,calc(100vw-24px))] flex-col overflow-y-auto bg-[#092d24] px-4 py-5 text-white transition-transform duration-300 lg:sticky lg:top-0 lg:z-50 lg:h-screen lg:w-auto lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex items-center justify-between px-2">
           <Link href="/dashboard" className="flex items-center gap-3">
@@ -227,8 +227,8 @@ export function CustomerShell({ children }: { children: ReactNode }) {
 
       <div className="min-w-0">
         <header className="sticky top-0 z-30 border-b border-[#dce5e1]/80 bg-[#f3f6f4]/90 px-4 backdrop-blur-xl sm:px-6 lg:px-10">
-          <div className="mx-auto flex h-[76px] max-w-[1320px] items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="mx-auto flex min-h-[68px] max-w-[1320px] items-center justify-between py-2 sm:min-h-[76px]">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
               <button
                 aria-label="Open menu"
                 className="rounded-xl border border-[#d8e1de] bg-white p-2.5 text-[#314b44] shadow-sm lg:hidden"
@@ -236,11 +236,11 @@ export function CustomerShell({ children }: { children: ReactNode }) {
               >
                 <Icon name="menu" className="h-5 w-5" />
               </button>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#7a8b86]">
                   {details.eyebrow}
                 </p>
-                <h1 className="mt-0.5 text-lg font-bold tracking-tight text-[#10231f] sm:text-xl">
+                <h1 className="mt-0.5 truncate text-base font-bold tracking-tight text-[#10231f] sm:text-xl">
                   {details.title}
                 </h1>
               </div>
@@ -271,7 +271,7 @@ export function CustomerShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1320px] p-4 pb-12 sm:p-6 lg:p-10">
+        <main className="mx-auto max-w-[1320px] p-3 pb-24 min-[380px]:p-4 sm:p-6 sm:pb-20 lg:p-10 lg:pb-16">
           {!user.emailVerifiedAt && (
             <section className="mb-5 flex flex-col gap-4 rounded-[20px] border border-[#c4d7cf] bg-[#eaf5f0] p-4 shadow-[0_12px_30px_-24px_rgba(8,82,63,.45)] sm:flex-row sm:items-center sm:px-5">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-[#087a5b] shadow-sm">
@@ -306,7 +306,7 @@ export function CustomerShell({ children }: { children: ReactNode }) {
                 type="button"
                 disabled={resendingVerification}
                 onClick={() => void resendVerification()}
-                className="h-10 shrink-0 rounded-xl bg-[#087a5b] px-4 text-xs font-bold text-white transition hover:bg-[#06694f] disabled:bg-[#94b2a9]"
+                className="h-10 w-full shrink-0 rounded-xl bg-[#087a5b] px-4 text-xs font-bold text-white transition hover:bg-[#06694f] disabled:bg-[#94b2a9] sm:w-auto"
               >
                 {resendingVerification ? "Sending…" : "Resend verification"}
               </button>

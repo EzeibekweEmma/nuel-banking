@@ -16,8 +16,8 @@ export function AuthShell({
   description?: string;
 }) {
   return (
-    <main className="min-h-screen bg-[#edf2ef] p-3 sm:p-5">
-      <div className="mx-auto grid min-h-[calc(100vh-24px)] max-w-[1180px] overflow-hidden rounded-[28px] bg-white shadow-[0_32px_80px_-55px_rgba(8,52,41,.65)] sm:min-h-[calc(100vh-40px)] lg:grid-cols-[1.05fr_.95fr]">
+    <main className="min-h-screen min-h-dvh bg-[#edf2ef] sm:p-5">
+      <div className="mx-auto grid min-h-screen min-h-dvh max-w-[1180px] overflow-hidden bg-white shadow-[0_32px_80px_-55px_rgba(8,52,41,.65)] sm:min-h-[calc(100dvh-40px)] sm:rounded-[28px] lg:grid-cols-[1.05fr_.95fr]">
         <section className="relative hidden overflow-hidden bg-[#0a382d] p-12 text-white lg:flex lg:flex-col">
           <div className="pointer-events-none absolute -left-32 -top-40 h-96 w-96 rounded-full border-[70px] border-white/[.035]" />
           <div className="pointer-events-none absolute -bottom-48 -right-40 h-[520px] w-[520px] rounded-full border-[95px] border-[#d8f85c]/[.055]" />
@@ -59,9 +59,9 @@ export function AuthShell({
             Secure digital banking · Built for everyday life
           </p>
         </section>
-        <section className="flex items-center justify-center px-6 py-10 sm:px-12 lg:px-16">
+        <section className="flex items-center justify-center px-4 py-7 min-[380px]:px-6 min-[380px]:py-9 sm:px-12 sm:py-10 lg:px-16">
           <div className="w-full max-w-md">
-            <div className="mb-10 flex items-center gap-3 lg:hidden">
+            <div className="mb-7 flex items-center gap-3 sm:mb-10 lg:hidden">
               <BrandMark className="h-9 w-9" />
               <span className="font-bold text-[#18352e]">Nuel Bank</span>
             </div>
@@ -75,7 +75,7 @@ export function AuthShell({
                       ? "Account activation"
                       : "Account recovery")}
             </p>
-            <h2 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[#18352e]">
+            <h2 className="mt-3 text-2xl font-bold tracking-[-0.04em] text-[#18352e] min-[380px]:text-3xl">
               {title ??
                 (mode === "login"
                   ? "Sign in to your account"

@@ -91,7 +91,7 @@ export default function DashboardPage() {
       )}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,.6fr)]">
         <BalanceCard account={account} />
-        <section className="rounded-[28px] border border-[#dce5e1] bg-white p-6 shadow-[0_12px_40px_-32px_rgba(13,56,45,.45)]">
+        <section className="rounded-[24px] border border-[#dce5e1] bg-white p-4 shadow-[0_12px_40px_-32px_rgba(13,56,45,.45)] min-[380px]:p-5 sm:rounded-[28px] sm:p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-[#71817d]">This month</p>
@@ -103,7 +103,7 @@ export default function DashboardPage() {
               <Icon name="arrow-up-right" className="h-5 w-5" />
             </span>
           </div>
-          <p className="mt-7 text-3xl font-bold tracking-[-0.035em] text-[#18352e]">
+          <p className="mt-7 break-words text-2xl font-bold tracking-[-0.035em] text-[#18352e] min-[380px]:text-3xl">
             {formatMoney(monthSummary.total, account.currency)}
           </p>
           <p className="mt-1 text-xs text-[#7a8a86]">
@@ -156,7 +156,7 @@ export default function DashboardPage() {
       </section>
 
       <div>
-        <section className="rounded-3xl border border-[#dce5e1] bg-white p-4 shadow-[0_12px_40px_-34px_rgba(13,56,45,.45)] sm:p-5">
+        <section className="rounded-[22px] border border-[#dce5e1] bg-white p-2 shadow-[0_12px_40px_-34px_rgba(13,56,45,.45)] min-[380px]:p-3 sm:rounded-3xl sm:p-5">
           <div className="flex items-center justify-between px-2 pb-2">
             <div>
               <h2 className="text-base font-bold text-[#18352e]">

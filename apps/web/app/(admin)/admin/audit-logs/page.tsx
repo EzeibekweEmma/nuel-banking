@@ -29,7 +29,7 @@ export default function AuditLogsPage() {
           return (
             <div
               key={item.id}
-              className="grid gap-1 border-b border-slate-100 p-4 text-sm last:border-0 sm:grid-cols-[1fr_1fr_auto]"
+              className="grid gap-2 border-b border-slate-100 p-4 text-sm last:border-0 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_auto]"
             >
               <span>
                 <b>{item.action.replaceAll("_", " ")}</b>
@@ -39,10 +39,10 @@ export default function AuditLogsPage() {
                   </small>
                 )}
               </span>
-              <span className="text-slate-600">
+              <span className="break-all text-slate-600">
                 {item.user?.email ?? "System"} · {item.entityType}
               </span>
-              <span className="text-slate-500">
+              <span className="text-xs text-slate-500 sm:col-span-2 xl:col-span-1 xl:text-sm">
                 {new Date(item.createdAt).toLocaleString()}
               </span>
             </div>

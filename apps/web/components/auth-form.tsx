@@ -50,7 +50,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   return (
     <form onSubmit={submit} className="mt-7 space-y-4">
       {mode === "register" && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 min-[420px]:grid-cols-2">
           <Input
             name="firstName"
             label="First name"

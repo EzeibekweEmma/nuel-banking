@@ -113,12 +113,12 @@ export default function TransactionsPage() {
             {total} matching {total === 1 ? "transaction" : "transactions"}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <button
             type="button"
             disabled={exporting !== null}
             onClick={() => void exportStatement("csv")}
-            className="h-10 rounded-xl border border-[#cbd8d3] bg-white px-4 text-xs font-bold text-[#315048] hover:border-[#087a5b] disabled:opacity-60"
+            className="h-10 rounded-xl border border-[#cbd8d3] bg-white px-3 text-xs font-bold text-[#315048] hover:border-[#087a5b] disabled:opacity-60 sm:px-4"
           >
             {exporting === "csv" ? "Preparing…" : "Export CSV"}
           </button>
@@ -126,7 +126,7 @@ export default function TransactionsPage() {
             type="button"
             disabled={exporting !== null}
             onClick={() => void exportStatement("pdf")}
-            className="h-10 rounded-xl bg-[#183d33] px-4 text-xs font-bold text-white hover:bg-[#0d3027] disabled:opacity-60"
+            className="h-10 rounded-xl bg-[#183d33] px-3 text-xs font-bold text-white hover:bg-[#0d3027] disabled:opacity-60 sm:px-4"
           >
             {exporting === "pdf" ? "Preparing…" : "Export PDF"}
           </button>
@@ -153,7 +153,7 @@ export default function TransactionsPage() {
         />
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[#dce5e1] bg-white p-4">
+      <div className="mt-5 rounded-2xl border border-[#dce5e1] bg-white p-3 min-[380px]:p-4">
         <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_repeat(3,minmax(130px,auto))]">
           <div className="relative">
             <Icon
@@ -177,7 +177,7 @@ export default function TransactionsPage() {
               setStatus(event.target.value);
               setPage(1);
             }}
-            className="h-11 rounded-xl border border-[#d8e1dd] bg-[#fbfcfb] px-3 text-xs font-bold text-[#5e716b] outline-none focus:border-[#087a5b]"
+            className="h-11 w-full rounded-xl border border-[#d8e1dd] bg-[#fbfcfb] px-3 text-xs font-bold text-[#5e716b] outline-none focus:border-[#087a5b]"
           >
             {statuses.map((item) => (
               <option key={item} value={item}>
@@ -196,7 +196,7 @@ export default function TransactionsPage() {
               setFrom(event.target.value);
               setPage(1);
             }}
-            className="h-11 rounded-xl border border-[#d8e1dd] bg-[#fbfcfb] px-3 text-xs font-semibold text-[#5e716b] outline-none focus:border-[#087a5b]"
+            className="h-11 w-full rounded-xl border border-[#d8e1dd] bg-[#fbfcfb] px-3 text-xs font-semibold text-[#5e716b] outline-none focus:border-[#087a5b]"
           />
           <input
             aria-label="End date"
@@ -207,7 +207,7 @@ export default function TransactionsPage() {
               setTo(event.target.value);
               setPage(1);
             }}
-            className="h-11 rounded-xl border border-[#d8e1dd] bg-[#fbfcfb] px-3 text-xs font-semibold text-[#5e716b] outline-none focus:border-[#087a5b]"
+            className="h-11 w-full rounded-xl border border-[#d8e1dd] bg-[#fbfcfb] px-3 text-xs font-semibold text-[#5e716b] outline-none focus:border-[#087a5b]"
           />
         </div>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -231,7 +231,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className="mt-5 rounded-3xl border border-[#dce5e1] bg-white p-3 shadow-[0_14px_40px_-34px_rgba(13,56,45,.5)] sm:p-5">
+      <div className="mt-5 rounded-[22px] border border-[#dce5e1] bg-white p-2 shadow-[0_14px_40px_-34px_rgba(13,56,45,.5)] min-[380px]:p-3 sm:rounded-3xl sm:p-5">
         {items.length > 0 ? (
           <div className="divide-y divide-[#edf1ef]">
             {items.map((item) => (
@@ -249,11 +249,11 @@ export default function TransactionsPage() {
       </div>
 
       {totalPages > 1 && (
-        <div className="mt-5 flex items-center justify-between">
+        <div className="mt-5 flex flex-col gap-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
           <p className="text-xs font-semibold text-[#74847f]">
             Page {page} of {totalPages}
           </p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 min-[380px]:flex">
             <button
               disabled={page === 1}
               onClick={() => setPage((current) => Math.max(1, current - 1))}

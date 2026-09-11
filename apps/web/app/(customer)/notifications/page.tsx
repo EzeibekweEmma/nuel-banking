@@ -56,7 +56,7 @@ export default function NotificationsPage() {
 
   return (
     <section className="max-w-3xl">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-col gap-4 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between">
         <div>
           <h2 className="text-xl font-bold text-[#18352e]">Updates for you</h2>
           <p className="mt-1 text-sm text-[#788883]">
@@ -72,13 +72,13 @@ export default function NotificationsPage() {
             type="button"
             disabled={markingAll}
             onClick={() => void markAllRead()}
-            className="h-10 shrink-0 rounded-xl border border-[#cbd8d3] bg-white px-4 text-xs font-bold text-[#087a5b] hover:border-[#087a5b] disabled:opacity-60"
+            className="h-10 w-full shrink-0 rounded-xl border border-[#cbd8d3] bg-white px-4 text-xs font-bold text-[#087a5b] hover:border-[#087a5b] disabled:opacity-60 min-[420px]:w-auto"
           >
             {markingAll ? "Updating…" : "Mark all as read"}
           </button>
         )}
       </div>
-      <div className="mt-5 overflow-hidden rounded-3xl border border-[#dce5e1] bg-white p-2 sm:p-3">
+      <div className="mt-5 overflow-hidden rounded-[22px] border border-[#dce5e1] bg-white p-1 min-[380px]:p-2 sm:rounded-3xl sm:p-3">
         {items.map((item) => (
           <button
             key={item.id}
@@ -100,13 +100,13 @@ export default function NotificationsPage() {
                 .catch((reason: Error) => setError(reason.message))
             }
             className={
-              "relative flex w-full items-start gap-4 rounded-2xl p-4 text-left transition hover:bg-[#f4f8f6] " +
+              "relative flex w-full items-start gap-3 rounded-2xl p-3 text-left transition hover:bg-[#f4f8f6] min-[380px]:p-4 sm:gap-4 " +
               (!item.isRead ? "bg-[#f0f8f5]" : "")
             }
           >
             <span
               className={
-                "grid h-11 w-11 shrink-0 place-items-center rounded-xl " +
+                "grid h-10 w-10 shrink-0 place-items-center rounded-xl min-[380px]:h-11 min-[380px]:w-11 " +
                 (item.type === "FRAUD_ALERT"
                   ? "bg-amber-100 text-amber-700"
                   : "bg-[#e5f2ed] text-[#087a5b]")

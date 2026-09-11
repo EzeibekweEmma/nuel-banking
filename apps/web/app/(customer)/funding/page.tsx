@@ -109,7 +109,7 @@ export default function FundingPage() {
       )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]">
-        <section className="rounded-[26px] border border-[#dce5e1] bg-white p-5 shadow-[0_16px_45px_-38px_rgba(13,56,45,.5)] sm:p-7">
+        <section className="rounded-[22px] border border-[#dce5e1] bg-white p-4 shadow-[0_16px_45px_-38px_rgba(13,56,45,.5)] min-[380px]:p-5 sm:rounded-[26px] sm:p-7">
           <div className="flex items-start gap-4">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#d8f85c] text-[#123b30]">
               <Icon name="wallet" className="h-5 w-5" />
@@ -132,7 +132,7 @@ export default function FundingPage() {
             >
               Amount to add
             </label>
-            <div className="mt-2 flex h-16 items-center rounded-2xl border border-[#cbd8d3] bg-[#fbfcfb] px-4 transition focus-within:border-[#087a5b] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#087a5b]/10">
+            <div className="mt-2 flex h-16 items-center rounded-2xl border border-[#cbd8d3] bg-[#fbfcfb] px-3 transition focus-within:border-[#087a5b] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#087a5b]/10 min-[380px]:px-4">
               <span className="mr-3 text-lg font-bold text-[#547069]">₦</span>
               <input
                 id="funding-amount"
@@ -143,7 +143,7 @@ export default function FundingPage() {
                 autoComplete="off"
                 required
                 placeholder="0.00"
-                className="amount-input min-w-0 flex-1 border-0 bg-transparent text-2xl font-bold text-[#18352e] outline-none placeholder:text-[#a5b2ae]"
+                className="amount-input min-w-0 flex-1 border-0 bg-transparent text-xl font-bold text-[#18352e] outline-none placeholder:text-[#a5b2ae] min-[380px]:text-2xl"
               />
               <span className="ml-3 text-xs font-bold text-[#879590]">NGN</span>
             </div>
@@ -201,7 +201,7 @@ export default function FundingPage() {
           </form>
         </section>
 
-        <aside className="overflow-hidden rounded-[26px] bg-[#10372d] p-6 text-white shadow-[0_20px_50px_-34px_rgba(8,49,39,.75)]">
+        <aside className="overflow-hidden rounded-[22px] bg-[#10372d] p-4 text-white shadow-[0_20px_50px_-34px_rgba(8,49,39,.75)] min-[380px]:p-5 sm:rounded-[26px] sm:p-6">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-[#a5c4bb]">
               Available balance
@@ -210,7 +210,7 @@ export default function FundingPage() {
               Demo mode
             </span>
           </div>
-          <p className="mt-3 text-3xl font-bold tracking-[-0.04em]">
+          <p className="mt-3 break-words text-2xl font-bold tracking-[-0.04em] min-[380px]:text-3xl">
             {formatMoney(account.balance, account.currency)}
           </p>
           <p className="mt-2 text-xs text-[#8fb0a7]">
@@ -255,7 +255,7 @@ export default function FundingPage() {
         </aside>
       </div>
 
-      <section className="rounded-3xl border border-[#dce5e1] bg-white p-5 sm:p-6">
+      <section className="rounded-[22px] border border-[#dce5e1] bg-white p-3 min-[380px]:p-4 sm:rounded-3xl sm:p-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-[#18352e]">
@@ -271,7 +271,7 @@ export default function FundingPage() {
         </div>
         <div className="mt-4 divide-y divide-[#edf1ef]">
           {deposits.map((deposit) => (
-            <div key={deposit.id} className="flex items-center gap-4 py-4">
+            <div key={deposit.id} className="flex flex-wrap items-center gap-3 py-4 sm:flex-nowrap sm:gap-4">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-[#087a5b]">
                 <Icon name="arrow-down-left" className="h-4 w-4" />
               </span>
@@ -283,8 +283,8 @@ export default function FundingPage() {
                   {deposit.reference} · {formatDate(deposit.createdAt, true)}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-bold text-[#087a5b]">
+              <div className="ml-[52px] w-[calc(100%-52px)] text-left sm:ml-0 sm:w-auto sm:text-right">
+                <p className="break-words text-sm font-bold text-[#087a5b]">
                   +{formatMoney(deposit.amount, deposit.currency)}
                 </p>
                 <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">

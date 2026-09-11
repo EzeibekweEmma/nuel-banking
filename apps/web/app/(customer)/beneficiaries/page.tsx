@@ -40,9 +40,9 @@ export default function BeneficiariesPage() {
 
   return (
     <section className="max-w-4xl">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
         <div><h2 className="text-xl font-bold text-[#18352e]">Saved recipients</h2><p className="mt-1 text-sm text-[#788883]">Send faster to people you trust.</p></div>
-        <button onClick={() => setShowForm((current) => !current)} className="flex h-11 items-center gap-2 rounded-xl bg-[#087a5b] px-4 text-xs font-bold text-white transition hover:bg-[#06694f]"><Icon name={showForm ? 'x' : 'plus'} className="h-4 w-4" />{showForm ? 'Cancel' : 'Add new'}</button>
+        <button onClick={() => setShowForm((current) => !current)} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#087a5b] px-4 text-xs font-bold text-white transition hover:bg-[#06694f] min-[420px]:w-auto"><Icon name={showForm ? 'x' : 'plus'} className="h-4 w-4" />{showForm ? 'Cancel' : 'Add new'}</button>
       </div>
 
       {showForm && (
@@ -61,10 +61,10 @@ export default function BeneficiariesPage() {
         {items.map((item) => {
           const owner = item.account.user;
           return (
-            <article key={item.id} className="flex items-center gap-4 rounded-[20px] border border-[#dce5e1] bg-white p-4 transition hover:border-[#b5cdc5]">
+            <article key={item.id} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[20px] border border-[#dce5e1] bg-white p-4 transition hover:border-[#b5cdc5] min-[420px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[420px]:gap-4">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#e7f2ee] text-sm font-bold text-[#087a5b]">{item.nickname.slice(0, 2).toUpperCase()}</span>
               <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-bold text-[#28483f]">{item.nickname}</h3><p className="mt-1 truncate text-xs text-[#7b8a86]">{owner ? owner.firstName + ' ' + owner.lastName + ' · ' : ''}•••• {item.account.accountNumber.slice(-4)}</p></div>
-              <ConfirmAction label="Remove" tone="red" message="Remove?" onConfirm={async () => { await api.removeBeneficiary(item.id); load(); }} />
+              <div className="col-span-2 ml-[60px] min-[420px]:col-span-1 min-[420px]:ml-0"><ConfirmAction label="Remove" tone="red" message="Remove?" onConfirm={async () => { await api.removeBeneficiary(item.id); load(); }} /></div>
             </article>
           );
         })}

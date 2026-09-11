@@ -79,7 +79,7 @@ export function ChatbotPanel() {
       {open && (
         <section
           aria-label="Nuel assistant chat"
-          className="fixed bottom-24 right-4 z-40 flex h-[min(560px,calc(100dvh-7.5rem))] min-h-[360px] w-[calc(100vw-2rem)] max-w-[380px] flex-col overflow-hidden rounded-3xl bg-[#102f27] text-white shadow-[0_24px_70px_-20px_rgba(9,45,36,.65)] sm:right-6"
+          className="fixed inset-x-2 bottom-20 z-40 flex h-[calc(100dvh-5.75rem)] max-h-[560px] min-h-0 w-auto flex-col overflow-hidden rounded-[22px] bg-[#102f27] text-white shadow-[0_24px_70px_-20px_rgba(9,45,36,.65)] min-[380px]:inset-x-3 sm:inset-x-auto sm:bottom-24 sm:right-6 sm:h-[min(560px,calc(100dvh-7.5rem))] sm:min-h-[360px] sm:w-[380px] sm:rounded-3xl"
         >
           <div className="flex shrink-0 items-center gap-3 border-b border-white/10 px-4 py-4">
             <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#d8f85c] text-[#123b30]">
@@ -102,7 +102,7 @@ export function ChatbotPanel() {
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 sm:p-5">
             {messages.length === 0 && (
               <>
                 <p className="max-w-[90%] rounded-2xl rounded-tl-sm bg-white/10 px-4 py-3 text-xs leading-5 text-[#d9e6e2]">
@@ -168,7 +168,7 @@ export function ChatbotPanel() {
         aria-label={open ? "Close Nuel assistant" : "Open Nuel assistant"}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="fixed bottom-5 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#d8f85c] text-[#123b30] shadow-[0_14px_35px_-10px_rgba(9,45,36,.6)] transition hover:-translate-y-0.5 hover:bg-[#e1ff67] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#087a5b]/25 sm:right-6"
+        className="fixed bottom-4 right-3 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#d8f85c] text-[#123b30] shadow-[0_14px_35px_-10px_rgba(9,45,36,.6)] transition hover:-translate-y-0.5 hover:bg-[#e1ff67] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#087a5b]/25 min-[380px]:right-4 sm:bottom-5 sm:right-6"
       >
         <Icon name={open ? "x" : "sparkles"} className="h-6 w-6" />
         {!open && (

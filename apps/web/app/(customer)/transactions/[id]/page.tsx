@@ -102,7 +102,7 @@ export default function TransactionDetailPage() {
         ← Back to transactions
       </Link>
       <div className="overflow-hidden rounded-[26px] border border-[#dce5e1] bg-white shadow-[0_18px_50px_-38px_rgba(13,56,45,.55)]">
-        <div className="border-b border-[#e5ebe8] bg-[#f7faf8] px-6 py-8 text-center sm:px-10">
+        <div className="border-b border-[#e5ebe8] bg-[#f7faf8] px-4 py-7 text-center sm:px-10 sm:py-8">
           <span
             className={`mx-auto grid h-14 w-14 place-items-center rounded-full ${credit ? "bg-emerald-100 text-[#087a5b]" : "bg-[#e5f2ed] text-[#31574d]"}`}
           >
@@ -119,7 +119,7 @@ export default function TransactionDetailPage() {
           </span>
           <p className="mt-4 text-xs font-semibold text-[#7a8a85]">{heading}</p>
           <h2
-            className={`mt-2 text-4xl font-bold tracking-[-0.045em] ${credit ? "text-[#087a5b]" : "text-[#18352e]"}`}
+            className={`mt-2 break-words text-3xl font-bold tracking-[-0.045em] min-[380px]:text-4xl ${credit ? "text-[#087a5b]" : "text-[#18352e]"}`}
           >
             {credit ? "+" : "−"}
             {formatMoney(transaction.amount, account.currency)}
@@ -128,7 +128,7 @@ export default function TransactionDetailPage() {
             <StatusBadge status={transaction.status} />
           </div>
         </div>
-        <dl className="divide-y divide-[#edf1ef] px-6 py-2 sm:px-10">
+        <dl className="divide-y divide-[#edf1ef] px-4 py-2 sm:px-10">
           <DetailRow
             label={deposit ? "Funding source" : credit ? "Sender" : "Recipient"}
             value={counterparty}
@@ -174,7 +174,7 @@ export default function TransactionDetailPage() {
           <DetailRow label="Fee" value={formatMoney(0, account.currency)} />
         </dl>
         {!credit && transaction.fraudAssessment && (
-          <div className="m-6 flex items-start gap-3 rounded-2xl bg-[#f1f7f4] p-4 sm:mx-10">
+          <div className="m-4 flex items-start gap-3 rounded-2xl bg-[#f1f7f4] p-4 sm:mx-10 sm:my-6">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#dff0e9] text-[#087a5b]">
               <Icon name="shield" className="h-4 w-4" />
             </span>
@@ -193,7 +193,7 @@ export default function TransactionDetailPage() {
         {needsVerification && (
           <form
             onSubmit={verifyTransfer}
-            className="m-6 rounded-2xl border border-[#d7e4df] bg-[#f7faf8] p-5 sm:mx-10"
+            className="m-4 rounded-2xl border border-[#d7e4df] bg-[#f7faf8] p-4 sm:mx-10 sm:my-6 sm:p-5"
           >
             <p className="text-sm font-bold text-[#24473d]">
               Confirm this transfer
@@ -253,7 +253,7 @@ export default function TransactionDetailPage() {
           </form>
         )}
         {credit && (
-          <div className="m-6 flex items-start gap-3 rounded-2xl bg-emerald-50 p-4 sm:mx-10">
+          <div className="m-4 flex items-start gap-3 rounded-2xl bg-emerald-50 p-4 sm:mx-10 sm:my-6">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-100 text-[#087a5b]">
               <Icon name="shield" className="h-4 w-4" />
             </span>

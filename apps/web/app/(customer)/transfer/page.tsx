@@ -187,7 +187,7 @@ export default function TransferPage() {
   return (
     <div className="max-w-5xl">
       {step !== "result" && (
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-6 flex items-center gap-1.5 min-[380px]:gap-3">
           {[
             ["Recipient", 1],
             ["Amount", 2],
@@ -235,7 +235,7 @@ export default function TransferPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <section className="rounded-3xl border border-[#dce5e1] bg-white p-5 shadow-[0_14px_40px_-34px_rgba(13,56,45,.55)] sm:p-7">
+        <section className="rounded-[22px] border border-[#dce5e1] bg-white p-4 shadow-[0_14px_40px_-34px_rgba(13,56,45,.55)] min-[380px]:p-5 sm:rounded-3xl sm:p-7">
           {step === "recipient" && (
             <div>
               <h2 className="text-xl font-bold tracking-tight text-[#18352e]">
@@ -296,7 +296,7 @@ export default function TransferPage() {
                   </Link>
                 </div>
                 {beneficiaries.length > 0 ? (
-                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="mt-4 grid gap-3 min-[340px]:grid-cols-2 sm:grid-cols-3">
                     {beneficiaries.slice(0, 6).map((item) => (
                       <button
                         key={item.id}
@@ -333,7 +333,7 @@ export default function TransferPage() {
               >
                 ← Change recipient
               </button>
-              <div className="flex items-center gap-3 rounded-2xl bg-[#f2f7f5] p-4">
+              <div className="flex items-center gap-3 rounded-2xl bg-[#f2f7f5] p-3 min-[380px]:p-4">
                 <span className="grid h-11 w-11 place-items-center rounded-full bg-[#d8f85c] text-sm font-extrabold text-[#173c32]">
                   {recipient.firstName[0]}
                   {recipient.lastName[0]}
@@ -342,7 +342,7 @@ export default function TransferPage() {
                   <p className="truncate text-sm font-bold text-[#18352e]">
                     {recipient.firstName} {recipient.lastName}
                   </p>
-                  <p className="mt-1 text-xs text-[#788984]">
+                  <p className="mt-1 break-words text-xs text-[#788984]">
                     Nuel Bank · {recipient.accountNumber}
                   </p>
                 </div>
@@ -357,7 +357,7 @@ export default function TransferPage() {
                 >
                   Amount to send
                 </label>
-                <div className="mt-2 flex h-14 items-center rounded-2xl border border-[#ccd8d3] bg-[#fbfcfb] px-5 transition focus-within:border-[#087a5b] focus-within:bg-white focus-within:ring-3 focus-within:ring-[#087a5b]/15">
+                <div className="mt-2 flex h-14 items-center rounded-2xl border border-[#ccd8d3] bg-[#fbfcfb] px-3 transition focus-within:border-[#087a5b] focus-within:bg-white focus-within:ring-3 focus-within:ring-[#087a5b]/15 min-[380px]:px-5">
                   <span className="text-xl font-bold text-[#788984]">₦</span>
                   <input
                     id="amount"
@@ -366,7 +366,7 @@ export default function TransferPage() {
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
                     placeholder="0.00"
-                    className="amount-input min-w-0 flex-1 border-0 bg-transparent px-3 text-3xl font-bold tracking-tight text-[#18352e] outline-none shadow-none placeholder:text-[#b4bfbb]"
+                    className="amount-input min-w-0 flex-1 border-0 bg-transparent px-2 text-2xl font-bold tracking-tight text-[#18352e] outline-none shadow-none placeholder:text-[#b4bfbb] min-[380px]:px-3 min-[380px]:text-3xl"
                   />
                 </div>
                 <p className="mt-2 text-xs text-[#7c8c87]">
@@ -414,14 +414,14 @@ export default function TransferPage() {
                 <p className="text-xs font-semibold text-[#7b8b87]">
                   You are sending
                 </p>
-                <p className="mt-2 text-4xl font-bold tracking-[-0.045em] text-[#18352e]">
+                <p className="mt-2 break-words text-3xl font-bold tracking-[-0.045em] text-[#18352e] min-[380px]:text-4xl">
                   {formatMoney(amount, account?.currency)}
                 </p>
                 <p className="mt-2 text-xs text-[#7b8b87]">
                   to {recipient.firstName} {recipient.lastName}
                 </p>
               </div>
-              <dl className="mt-8 divide-y divide-[#e7ecea] rounded-2xl border border-[#e0e7e4] px-5">
+              <dl className="mt-8 divide-y divide-[#e7ecea] rounded-2xl border border-[#e0e7e4] px-3 min-[380px]:px-5">
                 <ReviewRow
                   label="Recipient"
                   value={recipient.firstName + " " + recipient.lastName}
@@ -485,7 +485,7 @@ export default function TransferPage() {
                     ? "Under security review"
                     : "One more step"}
               </p>
-              <h2 className="mt-2 text-4xl font-bold tracking-[-0.045em] text-[#18352e]">
+              <h2 className="mt-2 break-words text-3xl font-bold tracking-[-0.045em] text-[#18352e] min-[380px]:text-4xl">
                 {formatMoney(result.amount, account?.currency)}
               </h2>
               <p className="mt-2 text-sm text-[#6f807b]">
@@ -608,9 +608,9 @@ export default function TransferPage() {
 
 function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-5 py-3.5 text-xs">
+    <div className="grid gap-1 py-3.5 text-xs min-[380px]:grid-cols-[auto_minmax(0,1fr)] min-[380px]:items-center min-[380px]:gap-5">
       <dt className="text-[#7d8c88]">{label}</dt>
-      <dd className="truncate text-right font-bold text-[#314f47]">{value}</dd>
+      <dd className="break-words font-bold text-[#314f47] min-[380px]:text-right">{value}</dd>
     </div>
   );
 }

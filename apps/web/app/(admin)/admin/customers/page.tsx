@@ -202,7 +202,7 @@ export default function CustomersPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="accountActionTitle"
-            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[22px] bg-white p-4 shadow-2xl min-[380px]:p-5 sm:rounded-3xl sm:p-6"
           >
             <div className="flex items-start gap-4">
               <span
@@ -256,7 +256,7 @@ export default function CustomersPage() {
                 }
                 className="mt-2 w-full resize-none rounded-xl border border-[#ccd8d3] bg-[#fbfcfb] p-4 text-sm leading-6 text-[#18352e] outline-none focus:border-[#087a5b] focus:bg-white"
               />
-              <div className="mt-2 flex justify-between text-[10px] text-[#8a9894]">
+              <div className="mt-2 flex flex-col gap-1 text-[10px] text-[#8a9894] min-[380px]:flex-row min-[380px]:justify-between">
                 <span>The customer will receive this reason.</span>
                 <span>{reason.length}/500</span>
               </div>
@@ -268,7 +268,7 @@ export default function CustomersPage() {
                   {actionError}
                 </p>
               )}
-              <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="mt-5 grid gap-3 min-[360px]:grid-cols-2">
                 <button
                   type="button"
                   disabled={saving}
