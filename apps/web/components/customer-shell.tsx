@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
 import { api, clearTokens, isAuthenticated, User } from '../lib/api';
+import { BrandMark } from './brand-mark';
 import { ChatbotPanel } from './chatbot-panel';
 import { Icon, IconName } from './icons';
 
@@ -88,7 +89,7 @@ export function CustomerShell({ children }: { children: ReactNode }) {
       <aside className={`fixed inset-y-0 left-0 z-50 flex w-[276px] flex-col bg-[#092d24] px-4 py-5 text-white transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:w-auto lg:translate-x-0 ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between px-2">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#d8f85c] text-base font-black text-[#092d24]">N</span>
+            <BrandMark className="h-10 w-10 shrink-0" />
             <span><span className="block text-[17px] font-bold tracking-tight">Nuel Bank</span><span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8fb0a7]">Personal banking</span></span>
           </Link>
           <button aria-label="Close menu" className="rounded-lg p-2 text-[#b5cbc5] hover:bg-white/10 lg:hidden" onClick={() => setMenuOpen(false)}><Icon name="x" className="h-5 w-5" /></button>

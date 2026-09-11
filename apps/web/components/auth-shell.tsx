@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { BrandMark } from './brand-mark';
 import { Icon } from './icons';
 
 export function AuthShell({ children, mode, eyebrow, title, description }: { children: ReactNode; mode: 'login' | 'register' | 'recovery'; eyebrow?: string; title?: string; description?: string }) {
@@ -8,7 +9,7 @@ export function AuthShell({ children, mode, eyebrow, title, description }: { chi
         <section className="relative hidden overflow-hidden bg-[#0a382d] p-12 text-white lg:flex lg:flex-col">
           <div className="pointer-events-none absolute -left-32 -top-40 h-96 w-96 rounded-full border-[70px] border-white/[.035]" />
           <div className="pointer-events-none absolute -bottom-48 -right-40 h-[520px] w-[520px] rounded-full border-[95px] border-[#d8f85c]/[.055]" />
-          <div className="relative flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#d8f85c] text-base font-black text-[#092d24]">N</span><span className="text-lg font-bold tracking-tight">Nuel Bank</span></div>
+          <div className="relative flex items-center gap-3"><BrandMark className="h-10 w-10" /><span className="text-lg font-bold tracking-tight">Nuel Bank</span></div>
           <div className="relative my-auto max-w-lg">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#d8f85c]">Banking made human</p>
             <h1 className="mt-5 text-5xl font-bold leading-[1.08] tracking-[-0.045em]">{mode === 'login' ? 'Your money, clear and secure.' : mode === 'register' ? 'A better way to manage your money.' : 'Secure recovery, without the worry.'}</h1>
@@ -22,7 +23,7 @@ export function AuthShell({ children, mode, eyebrow, title, description }: { chi
         </section>
         <section className="flex items-center justify-center px-6 py-10 sm:px-12 lg:px-16">
           <div className="w-full max-w-md">
-            <div className="mb-10 flex items-center gap-3 lg:hidden"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#d8f85c] text-sm font-black text-[#092d24]">N</span><span className="font-bold text-[#18352e]">Nuel Bank</span></div>
+            <div className="mb-10 flex items-center gap-3 lg:hidden"><BrandMark className="h-9 w-9" /><span className="font-bold text-[#18352e]">Nuel Bank</span></div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#087a5b]">{eyebrow ?? (mode === 'login' ? 'Welcome back' : mode === 'register' ? 'Join Nuel' : 'Account recovery')}</p>
             <h2 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[#18352e]">{title ?? (mode === 'login' ? 'Sign in to your account' : mode === 'register' ? 'Open your account' : 'Reset your password')}</h2>
             <p className="mt-2 text-sm leading-6 text-[#768681]">{description ?? (mode === 'login' ? 'Enter your details to continue to secure banking.' : mode === 'register' ? 'It only takes a minute to get started.' : 'Follow the secure steps below to regain access.')}</p>
