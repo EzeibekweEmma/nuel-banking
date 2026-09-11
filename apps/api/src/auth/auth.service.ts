@@ -103,14 +103,18 @@ export class AuthService {
       where: { id: payload.sub },
     });
     if (!user) throw new UnauthorizedException("Invalid refresh token");
-    await this.prisma.refreshToken.delete({ where: { id: token.id } });
+    const consumed = await this.prisma.refreshToken.deleteMany({
+      where: { id: token.id },
+    });
+    if (consumed.count !== 1)
+      throw new UnauthorizedException("Refresh token has already been used");
     return this.issueTokens(user);
   }
 
   async logout(userId: string, refreshToken: string): Promise<void> {
     const token = await this.findStoredToken(userId, refreshToken);
     if (token)
-      await this.prisma.refreshToken.delete({ where: { id: token.id } });
+      await this.prisma.refreshToken.deleteMany({ where: { id: token.id } });
   }
 
   async requestPasswordReset(

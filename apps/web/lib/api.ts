@@ -21,11 +21,22 @@ export function saveTokens(tokens: AuthTokens): void { localStorage.setItem(ACCE
 export function clearTokens(): void { localStorage.removeItem(ACCESS_TOKEN_KEY); localStorage.removeItem(REFRESH_TOKEN_KEY); }
 export function isAuthenticated(): boolean { return getTokens() !== null; }
 
-async function refreshAccessToken(): Promise<string | null> {
+let refreshPromise: Promise<string | null> | null = null;
+
+async function performTokenRefresh(): Promise<string | null> {
   const tokens = getTokens(); if (!tokens) return null;
-  const response = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: tokens.refreshToken }) });
-  if (!response.ok) { clearTokens(); return null; }
-  const next = await response.json() as AuthTokens; saveTokens(next); return next.accessToken;
+  try {
+    const response = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: tokens.refreshToken }) });
+    if (!response.ok) { clearTokens(); return null; }
+    const next = await response.json() as AuthTokens; saveTokens(next); return next.accessToken;
+  } catch {
+    return null;
+  }
+}
+
+function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) refreshPromise = performTokenRefresh().finally(() => { refreshPromise = null; });
+  return refreshPromise;
 }
 
 async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {

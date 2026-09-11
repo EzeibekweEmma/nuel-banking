@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
@@ -29,6 +30,16 @@ describe('AuthService', () => {
   it('rejects invalid credentials', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
     await expect(service.login({ email: user.email, password: 'SecurePassword123' })).rejects.toThrow('Invalid email or password');
+  });
+
+  it('rejects a refresh token that another request already consumed', async () => {
+    jwt.verifyAsync.mockResolvedValue({ sub: user.id, email: user.email, role: user.role });
+    prisma.refreshToken.findMany.mockResolvedValue([{ id: 'refresh-1', tokenHash: await bcrypt.hash('refresh-token', 4) }]);
+    prisma.user.findUnique.mockResolvedValue(user);
+    prisma.refreshToken.deleteMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.refresh('refresh-token')).rejects.toThrow('Refresh token has already been used');
+    expect(prisma.refreshToken.delete).not.toHaveBeenCalled();
   });
 
   it('creates a hashed, short-lived recovery token without exposing account existence', async () => {
