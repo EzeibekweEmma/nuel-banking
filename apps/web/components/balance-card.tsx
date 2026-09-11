@@ -21,7 +21,7 @@ export function BalanceCard({ account }: { account: Account }) {
       <div className="pointer-events-none absolute -bottom-24 right-20 h-52 w-52 rounded-full bg-[#d8f85c]/10 blur-2xl" />
       <div className="relative flex h-full min-h-[224px] flex-col">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#d8f85c] text-xs font-black text-[#092d24]">A</span><span className="text-sm font-bold">astra</span></div>
+          <div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#d8f85c] text-xs font-black text-[#092d24]">N</span><span className="text-sm font-bold">nuel</span></div>
           <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#d8e8e3]">{account.status}</span>
         </div>
 

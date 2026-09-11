@@ -48,7 +48,7 @@ export class ChatbotService {
       const result = await client.interactions.create({
         model: this.config.get<string>('GEMINI_MODEL') ?? 'gemini-3.5-flash-lite',
         input: context + (recentConversation ? '\n\nRecent conversation:\n' + recentConversation : '') + '\n\nCustomer: ' + message,
-        system_instruction: 'You are Astra, a helpful assistant inside a banking application. Answer banking questions and questions about the Astra app naturally and directly. Use verified customer context when supplied. Never request or reveal passwords, PINs, OTPs, tokens, or sensitive credentials. You cannot execute transfers, approve transactions, modify balances, or access databases. Keep answers concise and explain that transactions must be completed in the banking app.',
+        system_instruction: 'You are Nuel, a helpful assistant inside a banking application. Answer banking questions and questions about the Nuel app naturally and directly. Use verified customer context when supplied. Never request or reveal passwords, PINs, OTPs, tokens, or sensitive credentials. You cannot execute transfers, approve transactions, modify balances, or access databases. Keep answers concise and explain that transactions must be completed in the banking app.',
         generation_config: { max_output_tokens: 300, thinking_level: 'minimal' },
         store: false,
       }, { timeout: 18_000, maxRetries: 1 });
@@ -68,8 +68,8 @@ export class ChatbotService {
     if (/^(hi|hello|hey|good (morning|afternoon|evening))[!. ]*$/.test(lower)) {
       return 'Hello! I can help with your balance, recent transactions, transfers, beneficiaries, and account security. What would you like to know?';
     }
-    if (/what.*(app|astra).*about|what can (the |this )?app do|app features|about astra/.test(lower)) {
-      return 'Astra is a secure digital banking app for checking your balance, sending money, managing beneficiaries, reviewing transactions and alerts, and getting banking guidance from this assistant.';
+    if (/what.*(app|nuel).*about|what can (the |this )?app do|app features|about nuel/.test(lower)) {
+      return 'Nuel is a secure digital banking app for checking your balance, sending money, managing beneficiaries, reviewing transactions and alerts, and getting banking guidance from this assistant.';
     }
     if (/balance|how much.*account|available funds/.test(lower)) {
       const account = await this.accounts.getOwnAccount(userId);
@@ -89,7 +89,7 @@ export class ChatbotService {
       return 'Your most recent transfer was ' + this.formatMoney(latest.amount.toString(), account.currency) + ' to ' + recipientName + '. Its status is ' + latest.status.toLowerCase() + '.';
     }
     if (/fraud|scam|suspicious|security|safe/.test(lower)) {
-      return 'Every transfer is checked by Astra’s fraud monitoring. If activity looks unusual, the transfer may be held for review and you will receive a notification. Never share your password, PIN, or OTP.';
+      return 'Every transfer is checked by Nuel’s fraud monitoring. If activity looks unusual, the transfer may be held for review and you will receive a notification. Never share your password, PIN, or OTP.';
     }
     if (/transfer|send money|make a payment/.test(lower)) {
       return 'To send money, open Send money, verify the recipient’s name, enter the amount, review the details, and confirm. I can guide you, but I cannot execute a transfer.';

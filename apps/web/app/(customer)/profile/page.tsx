@@ -23,7 +23,7 @@ export default function ProfilePage() {
       </div>
       <div className="rounded-[24px] border border-[#dce5e1] bg-white p-6">
         <div className="flex items-start gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#e5f2ed] text-[#087a5b]"><Icon name="shield" className="h-5 w-5" /></span><div><h3 className="text-sm font-bold text-[#28483f]">Account security</h3><p className="mt-1 text-xs leading-5 text-[#74847f]">Your account is protected with secure authentication and real-time transfer monitoring.</p></div><span className="ml-auto text-xs font-bold text-[#087a5b]">Active</span></div>
-        <div className="mt-5 rounded-xl bg-[#f5f8f6] p-4 text-xs leading-5 text-[#667a74]">Astra staff will never ask for your password, PIN, or one-time code. Keep your login details private.</div>
+        <div className="mt-5 rounded-xl bg-[#f5f8f6] p-4 text-xs leading-5 text-[#667a74]">Nuel staff will never ask for your password, PIN, or one-time code. Keep your login details private.</div>
       </div>
     </section>
   );

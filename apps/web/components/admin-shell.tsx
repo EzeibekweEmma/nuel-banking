@@ -59,7 +59,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       {menuOpen && <button aria-label="Close menu" className="fixed inset-0 z-40 cursor-default bg-[#10231f]/45 backdrop-blur-sm lg:hidden" onClick={() => setMenuOpen(false)} />}
       <aside className={'fixed inset-y-0 left-0 z-50 flex w-[276px] flex-col bg-[#102921] px-4 py-5 text-white transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:w-auto lg:translate-x-0 ' + (menuOpen ? 'translate-x-0' : '-translate-x-full')}>
         <div className="flex items-center justify-between px-2">
-          <Link href="/admin" className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#d8f85c] text-base font-black text-[#092d24]">A</span><span><span className="block text-[17px] font-bold">Astra Bank</span><span className="block text-[10px] font-semibold uppercase tracking-[.18em] text-[#d8f85c]">Staff console</span></span></Link>
+          <Link href="/admin" className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#d8f85c] text-base font-black text-[#092d24]">N</span><span><span className="block text-[17px] font-bold">Nuel Bank</span><span className="block text-[10px] font-semibold uppercase tracking-[.18em] text-[#d8f85c]">Staff console</span></span></Link>
           <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="p-2 lg:hidden"><Icon name="x" className="h-5 w-5" /></button>
         </div>
         <nav className="mt-10 space-y-1">

@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <AuthShell mode="recovery" title={message ? 'Check your email' : 'Forgot your password?'} description={message ? 'Use the link we sent to create a new password.' : 'Enter the email linked to your Astra account.'}>
+    <AuthShell mode="recovery" title={message ? 'Check your email' : 'Forgot your password?'} description={message ? 'Use the link we sent to create a new password.' : 'Enter the email linked to your Nuel account.'}>
       {message ? (
         <div className="mt-7">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-[#e4f4ed] text-[#087a5b]"><Icon name="send" className="h-5 w-5" /></span>

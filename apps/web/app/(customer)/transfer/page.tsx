@@ -209,7 +209,7 @@ export default function TransferPage() {
                 Who are you sending to?
               </h2>
               <p className="mt-1 text-sm text-[#74847f]">
-                Enter an Astra account number or choose a saved beneficiary.
+                Enter a Nuel account number or choose a saved beneficiary.
               </p>
               <form onSubmit={findRecipient} className="mt-7">
                 <label
@@ -310,7 +310,7 @@ export default function TransferPage() {
                     {recipient.firstName} {recipient.lastName}
                   </p>
                   <p className="mt-1 text-xs text-[#788984]">
-                    Astra Bank · {recipient.accountNumber}
+                    Nuel Bank · {recipient.accountNumber}
                   </p>
                 </div>
                 <span className="ml-auto grid h-6 w-6 place-items-center rounded-full bg-[#dff2e9] text-[#087a5b]">
@@ -394,7 +394,7 @@ export default function TransferPage() {
                   value={recipient.firstName + " " + recipient.lastName}
                 />
                 <ReviewRow label="Account" value={recipient.accountNumber} />
-                <ReviewRow label="Bank" value="Astra Bank" />
+                <ReviewRow label="Bank" value="Nuel Bank" />
                 <ReviewRow
                   label="Narration"
                   value={description || "Money transfer"}
@@ -509,7 +509,7 @@ export default function TransferPage() {
             <Icon name="shield" className="h-6 w-6 text-[#d8f85c]" />
             <h3 className="mt-4 text-sm font-bold">Transfer with confidence</h3>
             <p className="mt-2 text-xs leading-5 text-[#a9c1ba]">
-              Always confirm the recipient’s name before sending. Astra will
+              Always confirm the recipient’s name before sending. Nuel will
               never ask for your password, PIN, or OTP in chat.
             </p>
           </div>

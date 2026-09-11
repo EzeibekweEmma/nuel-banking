@@ -50,7 +50,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         {loading ? 'Please wait…' : mode === 'login' ? 'Sign in securely' : 'Create my account'}
         {!loading && <Icon name="chevron-right" className="h-4 w-4" />}
       </button>
-      <p className="pt-1 text-center text-xs text-[#70817c]">{mode === 'login' ? 'New to Astra?' : 'Already have an account?'} <Link className="font-bold text-[#087a5b] hover:underline" href={mode === 'login' ? '/register' : '/login'}>{mode === 'login' ? 'Open an account' : 'Sign in'}</Link></p>
+      <p className="pt-1 text-center text-xs text-[#70817c]">{mode === 'login' ? 'New to Nuel?' : 'Already have an account?'} <Link className="font-bold text-[#087a5b] hover:underline" href={mode === 'login' ? '/register' : '/login'}>{mode === 'login' ? 'Open an account' : 'Sign in'}</Link></p>
     </form>
   );
 }

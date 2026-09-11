@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'Astra Bank', template: '%s · Astra Bank' },
+  title: { default: 'Nuel Bank', template: '%s · Nuel Bank' },
   description: 'Simple, secure everyday banking protected by intelligent fraud monitoring.',
 };
 

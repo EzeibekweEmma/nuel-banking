@@ -49,7 +49,7 @@ export default function BeneficiariesPage() {
         <form onSubmit={submit} className="mt-5 rounded-[22px] border border-[#bcd2ca] bg-white p-5 sm:p-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field name="nickname" label="Nickname" placeholder="e.g. Mum" />
-            <Field name="accountNumber" label="Astra account number" placeholder="10-digit account number" pattern="[0-9]{10}" inputMode="numeric" />
+            <Field name="accountNumber" label="Nuel account number" placeholder="10-digit account number" pattern="[0-9]{10}" inputMode="numeric" />
           </div>
           {error && <div className="mt-4"><ErrorState message={error} /></div>}
           <button disabled={loading} className="mt-5 h-11 rounded-xl bg-[#183d33] px-5 text-xs font-bold text-white disabled:opacity-60">{loading ? 'Saving…' : 'Save beneficiary'}</button>

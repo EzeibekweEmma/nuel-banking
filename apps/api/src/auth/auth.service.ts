@@ -297,13 +297,13 @@ export class AuthService {
       await transport.sendMail({
         from,
         to: email,
-        subject: "Reset your Astra Bank password",
+        subject: "Reset your Nuel Bank password",
         html:
-          '<div style="font-family:Arial,sans-serif;color:#18352e;line-height:1.6"><h2>Reset your password</h2><p>We received a request to reset your Astra Bank password.</p><p><a href="' +
+          '<div style="font-family:Arial,sans-serif;color:#18352e;line-height:1.6"><h2>Reset your password</h2><p>We received a request to reset your Nuel Bank password.</p><p><a href="' +
           resetUrl +
           '" style="display:inline-block;background:#087a5b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700">Reset password</a></p><p>This link expires in 15 minutes. If you did not request this, you can safely ignore this email.</p></div>',
         text:
-          "Reset your Astra Bank password using this link: " +
+          "Reset your Nuel Bank password using this link: " +
           resetUrl +
           ". The link expires in 15 minutes.",
       });

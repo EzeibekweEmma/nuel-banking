@@ -24,7 +24,7 @@ export class AccountsService {
       where: { accountNumber },
       select: { accountNumber: true, currency: true, status: true, userId: true, user: { select: { firstName: true, lastName: true } } },
     });
-    if (!account || account.status !== AccountStatus.ACTIVE) throw new NotFoundException('We could not find an active Astra account with that number');
+    if (!account || account.status !== AccountStatus.ACTIVE) throw new NotFoundException('We could not find an active Nuel account with that number');
     if (account.userId === userId) throw new BadRequestException('Choose an account other than your own');
     return { accountNumber: account.accountNumber, currency: account.currency, firstName: account.user.firstName, lastName: account.user.lastName };
   }

@@ -42,7 +42,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     <div className="mt-7 text-center">
       <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#e0f4ea] text-[#087a5b]"><Icon name="shield" className="h-6 w-6" /></span>
       <h3 className="mt-5 text-lg font-bold text-[#18352e]">Password updated</h3>
-      <p className="mt-2 text-sm leading-6 text-[#71817c]">Your other sessions have been signed out. Use your new password to access Astra.</p>
+      <p className="mt-2 text-sm leading-6 text-[#71817c]">Your other sessions have been signed out. Use your new password to access Nuel.</p>
       <Link href="/login" className="mt-6 flex h-12 items-center justify-center rounded-xl bg-[#087a5b] text-sm font-bold text-white">Continue to sign in</Link>
     </div>
   );
