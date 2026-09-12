@@ -12,8 +12,10 @@ import {
   UserRole,
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { AuditLogQueryDto } from "./dto/audit-log-query.dto";
 import { CustomerQueryDto } from "./dto/customer-query.dto";
 import { FraudAssessmentQueryDto } from "./dto/fraud-assessment-query.dto";
+import { HeldTransactionQueryDto } from "./dto/held-transaction-query.dto";
 import { PaginationDto } from "./dto/pagination.dto";
 import { TransactionQueryDto } from "./dto/transaction-query.dto";
 
@@ -94,7 +96,27 @@ export class AdminService {
   }
 
   async transactions(query: TransactionQueryDto) {
-    const where = query.status ? { status: query.status } : {};
+    const where: Prisma.TransactionWhereInput = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.riskLevel
+        ? { fraudAssessment: { is: { riskLevel: query.riskLevel } } }
+        : {}),
+      ...this.transactionSearchWhere(query.query),
+    };
+    return this.transactionPage(query, where);
+  }
+
+  heldTransactions(query: HeldTransactionQueryDto) {
+    return this.transactionPage(query, {
+      status: TransactionStatus.HELD,
+      ...this.transactionSearchWhere(query.query),
+    });
+  }
+
+  private async transactionPage(
+    query: PaginationDto,
+    where: Prisma.TransactionWhereInput,
+  ) {
     const [data, total] = await Promise.all([
       this.prisma.transaction.findMany({
         where,
@@ -108,79 +130,11 @@ export class AdminService {
     return { data, total, page: query.page, limit: query.limit };
   }
 
-  heldTransactions(query: PaginationDto) {
-    return this.transactions({ ...query, status: TransactionStatus.HELD });
-  }
-
   async fraudAssessments(query: FraudAssessmentQueryDto) {
     const search = query.query?.trim();
     const transactionWhere: Prisma.TransactionWhereInput = {
       ...(query.status ? { status: query.status } : {}),
-      ...(search
-        ? {
-            OR: [
-              { reference: { contains: search, mode: "insensitive" } },
-              {
-                sourceAccount: {
-                  is: {
-                    OR: [
-                      { accountNumber: { contains: search } },
-                      {
-                        user: {
-                          is: {
-                            OR: [
-                              {
-                                firstName: {
-                                  contains: search,
-                                  mode: "insensitive",
-                                },
-                              },
-                              {
-                                lastName: {
-                                  contains: search,
-                                  mode: "insensitive",
-                                },
-                              },
-                            ],
-                          },
-                        },
-                      },
-                    ],
-                  },
-                },
-              },
-              {
-                destinationAccount: {
-                  is: {
-                    OR: [
-                      { accountNumber: { contains: search } },
-                      {
-                        user: {
-                          is: {
-                            OR: [
-                              {
-                                firstName: {
-                                  contains: search,
-                                  mode: "insensitive",
-                                },
-                              },
-                              {
-                                lastName: {
-                                  contains: search,
-                                  mode: "insensitive",
-                                },
-                              },
-                            ],
-                          },
-                        },
-                      },
-                    ],
-                  },
-                },
-              },
-            ],
-          }
-        : {}),
+      ...this.transactionSearchWhere(search),
     };
     const where: Prisma.FraudAssessmentWhereInput = {
       ...(query.riskLevel ? { riskLevel: query.riskLevel } : {}),
@@ -224,15 +178,36 @@ export class AdminService {
     return { data, total, page: query.page, limit: query.limit };
   }
 
-  async auditLogs(query: PaginationDto) {
+  async auditLogs(query: AuditLogQueryDto) {
+    const search = query.query?.trim();
+    const where: Prisma.AuditLogWhereInput = {
+      ...(query.action ? { action: query.action } : {}),
+      ...(query.entityType
+        ? { entityType: { equals: query.entityType, mode: "insensitive" } }
+        : {}),
+      ...(search
+        ? {
+            OR: [
+              { entityId: { contains: search, mode: "insensitive" } },
+              { entityType: { contains: search, mode: "insensitive" } },
+              {
+                user: {
+                  is: { email: { contains: search, mode: "insensitive" } },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
     const [data, total] = await Promise.all([
       this.prisma.auditLog.findMany({
+        where,
         include: { user: { select: { email: true } } },
         orderBy: { createdAt: "desc" },
         skip: this.skip(query),
         take: query.limit,
       }),
-      this.prisma.auditLog.count(),
+      this.prisma.auditLog.count({ where }),
     ]);
     return { data, total, page: query.page, limit: query.limit };
   }
@@ -240,6 +215,75 @@ export class AdminService {
   private skip(query: PaginationDto): number {
     return (query.page - 1) * query.limit;
   }
+
+  private transactionSearchWhere(query?: string): Prisma.TransactionWhereInput {
+    const search = query?.trim();
+    if (!search) return {};
+    return {
+      OR: [
+        { reference: { contains: search, mode: "insensitive" } },
+        {
+          sourceAccount: {
+            is: {
+              OR: [
+                { accountNumber: { contains: search } },
+                {
+                  user: {
+                    is: {
+                      OR: [
+                        {
+                          firstName: {
+                            contains: search,
+                            mode: "insensitive",
+                          },
+                        },
+                        {
+                          lastName: {
+                            contains: search,
+                            mode: "insensitive",
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+        {
+          destinationAccount: {
+            is: {
+              OR: [
+                { accountNumber: { contains: search } },
+                {
+                  user: {
+                    is: {
+                      OR: [
+                        {
+                          firstName: {
+                            contains: search,
+                            mode: "insensitive",
+                          },
+                        },
+                        {
+                          lastName: {
+                            contains: search,
+                            mode: "insensitive",
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ],
+    };
+  }
+
   private readonly transactionInclude = {
     sourceAccount: {
       select: {

@@ -9,6 +9,34 @@ const transactionStatuses = [
   "FAILED",
 ];
 
+const auditActions = [
+  "REGISTRATION_SUCCEEDED",
+  "LOGIN_SUCCEEDED",
+  "LOGIN_FAILED",
+  "TRANSFER_CREATED",
+  "TRANSFER_COMPLETED",
+  "TRANSFER_HELD",
+  "TRANSFER_FAILED",
+  "TRANSACTION_APPROVED",
+  "TRANSACTION_REJECTED",
+  "FRAUD_ASSESSMENT_GENERATED",
+  "FRAUD_ALERT_GENERATED",
+  "ADMIN_REVIEW_PERFORMED",
+  "PASSWORD_RESET_REQUESTED",
+  "PASSWORD_RESET_COMPLETED",
+  "EMAIL_VERIFICATION_REQUESTED",
+  "EMAIL_VERIFIED",
+  "TRANSFER_VERIFICATION_CODE_SENT",
+  "TRANSFER_VERIFICATION_SUCCEEDED",
+  "TRANSFER_VERIFICATION_FAILED",
+  "ACCOUNT_FROZEN",
+  "ACCOUNT_UNFROZEN",
+  "DEMO_DEPOSIT_COMPLETED",
+  "PASSWORD_CHANGED",
+  "PROFILE_UPDATED",
+  "SESSION_REVOKED",
+];
+
 export function PaginationApiQueries(maximumLimit = 100): MethodDecorator {
   return applyDecorators(
     ApiQuery({
@@ -72,6 +100,63 @@ export function AdminTransactionApiQueries(): MethodDecorator {
       name: "status",
       required: false,
       enum: transactionStatuses,
+    }),
+    ApiQuery({
+      name: "riskLevel",
+      required: false,
+      enum: ["LOW", "MEDIUM", "HIGH"],
+    }),
+    ApiQuery({
+      name: "query",
+      required: false,
+      type: String,
+      maxLength: 100,
+      description:
+        "Search by reference, customer name, or source/destination account number.",
+      example: "0123456789",
+    }),
+  );
+}
+
+export function HeldTransactionFilterApiQueries(): MethodDecorator {
+  return applyDecorators(
+    PaginationApiQueries(),
+    ApiQuery({
+      name: "query",
+      required: false,
+      type: String,
+      maxLength: 100,
+      description:
+        "Search held transfers by reference, customer name, or account number.",
+      example: "0123456789",
+    }),
+  );
+}
+
+export function AuditLogFilterApiQueries(): MethodDecorator {
+  return applyDecorators(
+    PaginationApiQueries(),
+    ApiQuery({ name: "action", required: false, enum: auditActions }),
+    ApiQuery({
+      name: "entityType",
+      required: false,
+      enum: [
+        "User",
+        "Account",
+        "Transaction",
+        "FraudAssessment",
+        "Notification",
+        "DepositTransaction",
+        "RefreshToken",
+      ],
+    }),
+    ApiQuery({
+      name: "query",
+      required: false,
+      type: String,
+      maxLength: 100,
+      description: "Search by administrator email, entity ID, or entity type.",
+      example: "admin@nuel.test",
     }),
   );
 }

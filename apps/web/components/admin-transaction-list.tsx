@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminTransaction, api } from "../lib/api";
+import { formatDate, formatMoney } from "../lib/format";
 import { ConfirmAction } from "./confirm-action";
 import { RiskBadge, StatusBadge } from "./status-badge";
 
@@ -15,6 +16,10 @@ export function AdminTransactionList({
   reviewable = false,
   onUpdated,
 }: AdminTransactionListProps) {
+  const accountOwner = (account: AdminTransaction["sourceAccount"]) =>
+    account.user
+      ? `${account.user.firstName} ${account.user.lastName}`
+      : "Customer";
   const reviewActions = (item: AdminTransaction) => (
     <div className="flex flex-wrap items-center gap-3">
       <ConfirmAction
@@ -45,13 +50,10 @@ export function AdminTransactionList({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                  Sender / receiver
+                  Reference
                 </p>
-                <p className="mt-1 break-all font-mono text-xs font-semibold text-slate-900">
-                  {item.sourceAccount.accountNumber}
-                </p>
-                <p className="mt-1 break-all font-mono text-xs text-slate-500">
-                  → {item.destinationAccount.accountNumber}
+                <p className="mt-1 break-all font-mono text-xs font-semibold text-[#28483f]">
+                  {item.reference}
                 </p>
               </div>
               <StatusBadge status={item.status} />
@@ -60,7 +62,7 @@ export function AdminTransactionList({
               <div>
                 <dt className="text-slate-500">Amount</dt>
                 <dd className="mt-1 break-words font-bold text-slate-900">
-                  {item.amount}
+                  {formatMoney(item.amount)}
                 </dd>
               </div>
               <div>
@@ -76,10 +78,24 @@ export function AdminTransactionList({
                   )}
                 </dd>
               </div>
+              <div>
+                <dt className="text-slate-500">Sender</dt>
+                <dd className="mt-1 break-words text-slate-700">
+                  {accountOwner(item.sourceAccount)} ·{" "}
+                  {item.sourceAccount.accountNumber}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Receiver</dt>
+                <dd className="mt-1 break-words text-slate-700">
+                  {accountOwner(item.destinationAccount)} ·{" "}
+                  {item.destinationAccount.accountNumber}
+                </dd>
+              </div>
               <div className="col-span-2">
                 <dt className="text-slate-500">Date</dt>
                 <dd className="mt-1 text-slate-700">
-                  {new Date(item.createdAt).toLocaleString()}
+                  {formatDate(item.createdAt, true)}
                 </dd>
               </div>
             </dl>
@@ -107,15 +123,24 @@ export function AdminTransactionList({
                 className="border-t border-slate-100 transition hover:bg-slate-50"
               >
                 <td className="p-4">
-                  <p className="font-medium text-slate-900">
+                  <p className="font-semibold text-slate-900">
+                    {accountOwner(item.sourceAccount)}
+                  </p>
+                  <p className="mt-0.5 font-mono text-xs text-slate-600">
                     {item.sourceAccount.accountNumber}
                   </p>
-                  <p className="mt-1 text-slate-500">
-                    → {item.destinationAccount.accountNumber}
+                  <p className="mt-2 font-semibold text-slate-900">
+                    → {accountOwner(item.destinationAccount)}
+                  </p>
+                  <p className="mt-0.5 font-mono text-xs text-slate-600">
+                    {item.destinationAccount.accountNumber}
+                  </p>
+                  <p className="mt-2 break-all font-mono text-[10px] text-slate-400">
+                    {item.reference}
                   </p>
                 </td>
                 <td className="p-4 font-semibold text-slate-900">
-                  {item.amount}
+                  {formatMoney(item.amount)}
                 </td>
                 <td className="p-4">
                   {item.fraudAssessment ? (
@@ -131,7 +156,7 @@ export function AdminTransactionList({
                   <StatusBadge status={item.status} />
                 </td>
                 <td className="p-4 text-slate-500">
-                  {new Date(item.createdAt).toLocaleDateString()}
+                  {formatDate(item.createdAt, true)}
                 </td>
                 {reviewable && <td className="p-4">{reviewActions(item)}</td>}
               </tr>

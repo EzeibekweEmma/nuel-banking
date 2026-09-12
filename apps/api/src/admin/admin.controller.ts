@@ -28,16 +28,18 @@ import {
 import { TransferRecordResponseDto } from "../documentation/dto/transaction-response.dto";
 import {
   AdminTransactionApiQueries,
+  AuditLogFilterApiQueries,
   CustomerAccountFilterApiQueries,
   FraudAssessmentFilterApiQueries,
-  PaginationApiQueries,
+  HeldTransactionFilterApiQueries,
 } from "../documentation/query-parameters.decorator";
 import { TransactionsService } from "../transactions/transactions.service";
 import { AdminService } from "./admin.service";
 import { AccountControlDto } from "./dto/account-control.dto";
+import { AuditLogQueryDto } from "./dto/audit-log-query.dto";
 import { CustomerQueryDto } from "./dto/customer-query.dto";
 import { FraudAssessmentQueryDto } from "./dto/fraud-assessment-query.dto";
-import { PaginationDto } from "./dto/pagination.dto";
+import { HeldTransactionQueryDto } from "./dto/held-transaction-query.dto";
 import { TransactionQueryDto } from "./dto/transaction-query.dto";
 
 @ApiTags("Administration")
@@ -66,9 +68,9 @@ export class AdminController {
   }
   @ApiOperation({ summary: "List transactions awaiting staff review" })
   @ApiOkResponse({ type: PaginatedAdminTransactionsResponseDto })
-  @PaginationApiQueries()
+  @HeldTransactionFilterApiQueries()
   @Get("transactions/held")
-  held(@Query() query: PaginationDto) {
+  held(@Query() query: HeldTransactionQueryDto) {
     return this.adminService.heldTransactions(query);
   }
   @ApiOperation({ summary: "List fraud assessments" })
@@ -80,9 +82,9 @@ export class AdminController {
   }
   @ApiOperation({ summary: "List security and administration audit logs" })
   @ApiOkResponse({ type: PaginatedAuditLogsResponseDto })
-  @PaginationApiQueries()
+  @AuditLogFilterApiQueries()
   @Get("audit-logs")
-  auditLogs(@Query() query: PaginationDto) {
+  auditLogs(@Query() query: AuditLogQueryDto) {
     return this.adminService.auditLogs(query);
   }
   @ApiOperation({ summary: "Freeze a customer account with a reason" })

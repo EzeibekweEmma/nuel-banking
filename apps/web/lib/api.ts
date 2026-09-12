@@ -163,6 +163,25 @@ export interface FraudAssessmentFilters {
   decision?: "ALL" | "APPROVE" | "VERIFY" | "HOLD";
   status?: "ALL" | "PENDING" | "COMPLETED" | "HELD" | "REJECTED" | "FAILED";
 }
+export interface AdminTransactionFilters {
+  page?: number;
+  limit?: number;
+  query?: string;
+  status?: "ALL" | "PENDING" | "COMPLETED" | "HELD" | "REJECTED" | "FAILED";
+  riskLevel?: "ALL" | "LOW" | "MEDIUM" | "HIGH";
+}
+export interface HeldTransactionFilters {
+  page?: number;
+  limit?: number;
+  query?: string;
+}
+export interface AuditLogFilters {
+  page?: number;
+  limit?: number;
+  query?: string;
+  action?: string;
+  entityType?: string;
+}
 export interface AdminTransaction extends Transaction {
   sourceAccount: {
     accountNumber: string;
@@ -457,20 +476,20 @@ export const api = {
       `/admin/accounts/${id}/unfreeze`,
       { method: "PATCH", body: JSON.stringify({ reason }) },
     ),
-  adminTransactions: (page = 1, status?: string) =>
+  adminTransactions: (filters: AdminTransactionFilters = {}) =>
     request<PageResult<AdminTransaction>>(
-      `/admin/transactions?page=${page}${status ? `&status=${status}` : ""}`,
+      `/admin/transactions${filterQuery(filters)}`,
     ),
-  adminHeldTransactions: (page = 1) =>
+  adminHeldTransactions: (filters: HeldTransactionFilters = {}) =>
     request<PageResult<AdminTransaction>>(
-      `/admin/transactions/held?page=${page}`,
+      `/admin/transactions/held${filterQuery(filters)}`,
     ),
   adminAssessments: (filters: FraudAssessmentFilters = {}) =>
     request<PageResult<FraudAssessment>>(
       `/admin/fraud-assessments${filterQuery(filters)}`,
     ),
-  adminAuditLogs: (page = 1) =>
-    request<PageResult<AuditLog>>(`/admin/audit-logs?page=${page}`),
+  adminAuditLogs: (filters: AuditLogFilters = {}) =>
+    request<PageResult<AuditLog>>(`/admin/audit-logs${filterQuery(filters)}`),
   approveHeldTransaction: (id: string) =>
     request<AdminTransaction>(`/admin/transactions/${id}/approve`, {
       method: "POST",

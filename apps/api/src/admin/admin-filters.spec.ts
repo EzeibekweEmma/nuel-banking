@@ -1,5 +1,6 @@
 import {
   AccountStatus,
+  AuditAction,
   FraudDecision,
   FraudRiskLevel,
   TransactionStatus,
@@ -7,8 +8,10 @@ import {
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { AdminService } from "./admin.service";
+import { AuditLogQueryDto } from "./dto/audit-log-query.dto";
 import { CustomerQueryDto } from "./dto/customer-query.dto";
 import { FraudAssessmentQueryDto } from "./dto/fraud-assessment-query.dto";
+import { TransactionQueryDto } from "./dto/transaction-query.dto";
 
 describe("Admin filters", () => {
   const prisma = {
@@ -17,6 +20,14 @@ describe("Admin filters", () => {
       count: jest.fn().mockResolvedValue(0),
     },
     fraudAssessment: {
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    transaction: {
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    auditLog: {
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
     },
@@ -85,6 +96,88 @@ describe("Admin filters", () => {
     });
   });
 
+  it("filters transactions by status, risk, and customer details", async () => {
+    await service.transactions({
+      page: 2,
+      limit: 10,
+      query: "NUE-123",
+      status: TransactionStatus.COMPLETED,
+      riskLevel: FraudRiskLevel.LOW,
+    });
+
+    const findArguments = prisma.transaction.findMany.mock.calls[0][0];
+    expect(findArguments).toEqual(
+      expect.objectContaining({
+        skip: 10,
+        take: 10,
+        where: expect.objectContaining({
+          status: TransactionStatus.COMPLETED,
+          fraudAssessment: { is: { riskLevel: FraudRiskLevel.LOW } },
+          OR: expect.arrayContaining([
+            {
+              reference: {
+                contains: "NUE-123",
+                mode: "insensitive",
+              },
+            },
+          ]),
+        }),
+      }),
+    );
+    expect(prisma.transaction.count).toHaveBeenCalledWith({
+      where: findArguments.where,
+    });
+  });
+
+  it("keeps held-review searches restricted to held transactions", async () => {
+    await service.heldTransactions({
+      page: 1,
+      limit: 20,
+      query: "0123456789",
+    });
+
+    const findArguments = prisma.transaction.findMany.mock.calls[0][0];
+    expect(findArguments.where).toEqual(
+      expect.objectContaining({
+        status: TransactionStatus.HELD,
+        OR: expect.any(Array),
+      }),
+    );
+  });
+
+  it("filters audit logs by action, entity, and actor search", async () => {
+    await service.auditLogs({
+      page: 1,
+      limit: 20,
+      query: "admin@nuel.test",
+      action: AuditAction.ACCOUNT_FROZEN,
+      entityType: "Account",
+    });
+
+    const findArguments = prisma.auditLog.findMany.mock.calls[0][0];
+    expect(findArguments.where).toEqual(
+      expect.objectContaining({
+        action: AuditAction.ACCOUNT_FROZEN,
+        entityType: { equals: "Account", mode: "insensitive" },
+        OR: expect.arrayContaining([
+          {
+            user: {
+              is: {
+                email: {
+                  contains: "admin@nuel.test",
+                  mode: "insensitive",
+                },
+              },
+            },
+          },
+        ]),
+      }),
+    );
+    expect(prisma.auditLog.count).toHaveBeenCalledWith({
+      where: findArguments.where,
+    });
+  });
+
   it("validates customer and fraud filter enum values", async () => {
     const customer = plainToInstance(CustomerQueryDto, {
       page: "1",
@@ -97,5 +190,18 @@ describe("Admin filters", () => {
 
     expect(await validate(customer)).toHaveLength(1);
     expect(await validate(fraud)).toHaveLength(2);
+  });
+
+  it("validates transaction and audit filter enum values", async () => {
+    const transaction = plainToInstance(TransactionQueryDto, {
+      status: "UNKNOWN",
+      riskLevel: "CRITICAL",
+    });
+    const audit = plainToInstance(AuditLogQueryDto, {
+      action: "ACCOUNT_DELETED",
+    });
+
+    expect(await validate(transaction)).toHaveLength(2);
+    expect(await validate(audit)).toHaveLength(1);
   });
 });
