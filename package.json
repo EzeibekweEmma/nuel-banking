@@ -20,6 +20,7 @@
     "prisma:status": "prisma migrate status",
     "prisma:deploy": "prisma migrate deploy",
     "admin:seed": "set -a && . ./.env && set +a && pnpm --filter api exec ts-node src/seed.ts",
+    "demo:seed": "set -a && . ./.env && set +a && pnpm --filter api seed:demo",
     "prisma:studio": "prisma studio"
   },
   "devDependencies": {

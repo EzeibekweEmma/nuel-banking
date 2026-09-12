@@ -132,7 +132,26 @@ The command is idempotent: running it again promotes or updates the role of the
 configured email without creating a duplicate user. The administrator email is
 marked verified automatically.
 
-### 6. Start the application
+### 6. Add academic demo data (optional)
+
+Populate the local database with 300 customers and realistic linked activity:
+
+```bash
+pnpm demo:seed
+```
+
+This is a data seed, not a schema migration. It creates customer accounts, deposits, beneficiaries, incoming and outgoing transfers, fraud assessments, held and rejected transactions, notifications, devices, sessions, assistant conversations, and audit logs. Generated records have stable IDs, so running the command again with the same count does not duplicate them. The command is blocked when `NODE_ENV=production`.
+
+The seeded logins are:
+
+| Role          | Email                  | Default password |
+| ------------- | ---------------------- | ---------------- |
+| Customer      | `demo001@nuel.test`    | `NuelDemo@2026!` |
+| Administrator | `admin.demo@nuel.test` | `NuelDemo@2026!` |
+
+All generated customer addresses follow `demo001@nuel.test` through the configured customer count. Set `DEMO_SEED_COUNT` to an integer rom 200 through 500 and set `DEMO_SEED_PASSWORD` to change the hared local password. Use the same count on later runs; use a disposable database if you want to regenerate a different-sized dataset from scratch.
+
+### 7. Start the application
 
 ```bash
 pnpm dev
@@ -175,6 +194,8 @@ To run one application at a time, use `pnpm dev:web` or `pnpm dev:api`.
 | `TRANSACTION_VERIFICATION_SECRET` | Recommended | Adds independent protection to transfer verification codes.                             |
 | `ADMIN_EMAIL`                     | Admin seed  | Email used by `pnpm admin:seed`.                                                        |
 | `ADMIN_PASSWORD`                  | Admin seed  | Administrator password; minimum 12 characters.                                          |
+| `DEMO_SEED_COUNT`                 | No          | Number of academic demo customers; 200–500, default `300`.                              |
+| `DEMO_SEED_PASSWORD`              | No          | Shared local-only demo password; minimum 12 characters.                                 |
 
 ### SMTP configuration
 
@@ -214,6 +235,7 @@ Run commands from the repository root unless noted otherwise.
 | `pnpm prisma:status`                 | Show migration status.                                |
 | `pnpm prisma:studio`                 | Open Prisma Studio for local inspection.              |
 | `pnpm admin:seed`                    | Create or promote the configured administrator.       |
+| `pnpm demo:seed`                     | Seed 200–500 mock customers and linked bank activity. |
 
 ## API documentation
 

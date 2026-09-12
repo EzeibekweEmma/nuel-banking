@@ -10,6 +10,7 @@
     "test": "jest --runInBand",
     "test:integration": "set -a && . ../../.env && set +a && RUN_INTEGRATION_TESTS=true jest --runInBand --testPathPattern=integration",
     "test:watch": "jest --watch",
+    "seed:demo": "ts-node src/demo-seed.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
