@@ -1,9 +1,19 @@
 import { Controller, Get, Param, UseGuards } from "@nestjs/common";
-import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from "@nestjs/swagger";
 import { AuthUser } from "../auth/auth-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
+import {
+  AccountResponseDto,
+  BalanceResponseDto,
+  RecipientResponseDto,
+} from "../documentation/dto/api-response.dto";
 import { RateLimit } from "../rate-limit/rate-limit.decorator";
 import { AccountsService } from "./accounts.service";
 
@@ -16,12 +26,14 @@ export class AccountsController {
 
   @Get("me")
   @ApiOperation({ summary: "Get the signed-in customer's account" })
+  @ApiOkResponse({ type: AccountResponseDto })
   getOwnAccount(@CurrentUser() user: AuthUser) {
     return this.accountsService.getOwnAccount(user.id);
   }
 
   @Get("me/balance")
   @ApiOperation({ summary: "Get the available account balance" })
+  @ApiOkResponse({ type: BalanceResponseDto })
   getOwnBalance(@CurrentUser() user: AuthUser) {
     return this.accountsService.getOwnBalance(user.id);
   }
@@ -33,6 +45,7 @@ export class AccountsController {
     identity: "user",
   })
   @ApiOperation({ summary: "Look up a transfer recipient by account number" })
+  @ApiOkResponse({ type: RecipientResponseDto })
   @ApiParam({
     name: "accountNumber",
     description: "10-digit Nuel account number",

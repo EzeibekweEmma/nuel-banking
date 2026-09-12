@@ -12,8 +12,21 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Request } from "express";
-import { ApiNoContentResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
+import {
+  ActiveSessionResponseDto,
+  AuthTokensResponseDto,
+  DevelopmentLinkResponseDto,
+  MessageResponseDto,
+  UserResponseDto,
+} from "../documentation/dto/api-response.dto";
 import { RateLimit } from "../rate-limit/rate-limit.decorator";
 import { AuthService, AuthTokens, SessionContext } from "./auth.service";
 import { AuthUser } from "./auth-user.interface";
@@ -39,6 +52,7 @@ export class AuthController {
     identity: "ip",
   })
   @ApiOperation({ summary: "Register a customer account" })
+  @ApiCreatedResponse({ type: AuthTokensResponseDto })
   @Post("register")
   register(
     @Body() dto: RegisterDto,
@@ -53,6 +67,7 @@ export class AuthController {
     identity: "ip",
   })
   @ApiOperation({ summary: "Sign in and create an active session" })
+  @ApiCreatedResponse({ type: AuthTokensResponseDto })
   @Post("login")
   login(@Body() dto: LoginDto, @Req() request: Request): Promise<AuthTokens> {
     return this.authService.login(dto, this.sessionContext(request));
@@ -68,6 +83,7 @@ export class AuthController {
     description:
       "Always returns a neutral response so registered email addresses cannot be discovered.",
   })
+  @ApiCreatedResponse({ type: DevelopmentLinkResponseDto })
   @Post("forgot-password")
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.requestPasswordReset(dto.email);
@@ -79,11 +95,13 @@ export class AuthController {
     identity: "ip",
   })
   @ApiOperation({ summary: "Reset a password using an emailed token" })
+  @ApiCreatedResponse({ type: MessageResponseDto })
   @Post("reset-password")
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.password);
   }
   @ApiOperation({ summary: "Verify a customer email address" })
+  @ApiCreatedResponse({ type: MessageResponseDto })
   @Post("verify-email")
   verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmail(dto.token);
@@ -96,12 +114,14 @@ export class AuthController {
   })
   @AuthenticatedApi()
   @ApiOperation({ summary: "Send another email-verification link" })
+  @ApiCreatedResponse({ type: DevelopmentLinkResponseDto })
   @UseGuards(JwtAuthGuard)
   @Post("resend-email-verification")
   resendEmailVerification(@CurrentUser() user: AuthUser) {
     return this.authService.resendEmailVerification(user.id);
   }
   @ApiOperation({ summary: "Rotate a refresh token and issue new tokens" })
+  @ApiCreatedResponse({ type: AuthTokensResponseDto })
   @Post("refresh")
   refresh(
     @Body() dto: RefreshTokenDto,
@@ -126,6 +146,7 @@ export class AuthController {
   }
   @AuthenticatedApi()
   @ApiOperation({ summary: "Get the signed-in customer" })
+  @ApiOkResponse({ type: UserResponseDto })
   @UseGuards(JwtAuthGuard)
   @Get("me")
   me(@CurrentUser() user: AuthUser) {
@@ -143,6 +164,7 @@ export class AuthController {
     summary: "Change the signed-in customer's password",
     description: "A successful change revokes every active session.",
   })
+  @ApiOkResponse({ type: MessageResponseDto })
   @UseGuards(JwtAuthGuard)
   @Patch("change-password")
   changePassword(
@@ -158,6 +180,7 @@ export class AuthController {
 
   @AuthenticatedApi()
   @ApiOperation({ summary: "List active sessions" })
+  @ApiOkResponse({ type: [ActiveSessionResponseDto] })
   @UseGuards(JwtAuthGuard)
   @Get("sessions")
   sessions(@CurrentUser() user: AuthUser) {

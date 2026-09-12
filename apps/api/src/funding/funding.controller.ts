@@ -7,12 +7,22 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { ApiHeader, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { AuthUser } from "../auth/auth-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { EmailVerifiedGuard } from "../auth/email-verified.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
+import {
+  DepositResponseDto,
+  FundingConfigurationResponseDto,
+} from "../documentation/dto/api-response.dto";
 import { CreateDemoDepositDto } from "./dto/create-demo-deposit.dto";
 import { FundingService } from "./funding.service";
 
@@ -24,6 +34,7 @@ export class FundingController {
   constructor(private readonly fundingService: FundingService) {}
 
   @ApiOperation({ summary: "Get demo-funding availability and limits" })
+  @ApiOkResponse({ type: FundingConfigurationResponseDto })
   @Get("demo/configuration")
   configuration() {
     return this.fundingService.getDemoConfiguration();
@@ -36,6 +47,7 @@ export class FundingController {
     required: true,
     description: "Unique key, 8–128 characters, preventing duplicate deposits.",
   })
+  @ApiCreatedResponse({ type: DepositResponseDto })
   @Post("demo")
   createDemoDeposit(
     @CurrentUser() user: AuthUser,
@@ -52,6 +64,7 @@ export class FundingController {
   }
 
   @ApiOperation({ summary: "List demo-funding deposits" })
+  @ApiOkResponse({ type: [DepositResponseDto] })
   @Get("deposits")
   deposits(@CurrentUser() user: AuthUser) {
     return this.fundingService.listDeposits(user.id);

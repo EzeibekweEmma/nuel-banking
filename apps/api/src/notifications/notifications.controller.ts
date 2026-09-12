@@ -7,11 +7,20 @@ import {
   Patch,
   UseGuards,
 } from "@nestjs/common";
-import { ApiNoContentResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { AuthUser } from "../auth/auth-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
+import {
+  NotificationResponseDto,
+  UpdatedCountResponseDto,
+} from "../documentation/dto/api-response.dto";
 import { NotificationsService } from "./notifications.service";
 
 @ApiTags("Notifications")
@@ -21,11 +30,13 @@ import { NotificationsService } from "./notifications.service";
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
   @ApiOperation({ summary: "List customer notifications" })
+  @ApiOkResponse({ type: [NotificationResponseDto] })
   @Get()
   list(@CurrentUser() user: AuthUser) {
     return this.notificationsService.list(user.id);
   }
   @ApiOperation({ summary: "Mark every notification as read" })
+  @ApiOkResponse({ type: UpdatedCountResponseDto })
   @Patch("read-all")
   markAllRead(@CurrentUser() user: AuthUser) {
     return this.notificationsService.markAllRead(user.id);

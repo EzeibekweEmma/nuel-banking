@@ -11,7 +11,9 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import {
+  ApiCreatedResponse,
   ApiHeader,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -22,6 +24,12 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { EmailVerifiedGuard } from "../auth/email-verified.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
+import {
+  MessageResponseDto,
+  PaginatedTransactionsResponseDto,
+  TransactionResponseDto,
+  TransferRecordResponseDto,
+} from "../documentation/dto/api-response.dto";
 import {
   CustomerTransactionFilterApiQueries,
   PaginationApiQueries,
@@ -66,6 +74,7 @@ export class TransactionsController {
     required: false,
     description: "Untrusted location hint used only by the fraud risk engine.",
   })
+  @ApiCreatedResponse({ type: TransferRecordResponseDto })
   @Post("transfer")
   transfer(
     @CurrentUser() user: AuthUser,
@@ -93,6 +102,7 @@ export class TransactionsController {
   })
   @UseGuards(EmailVerifiedGuard)
   @ApiOperation({ summary: "Verify a pending transfer using its email code" })
+  @ApiCreatedResponse({ type: TransferRecordResponseDto })
   @Post(":id/verify")
   verify(
     @CurrentUser() user: AuthUser,
@@ -109,6 +119,7 @@ export class TransactionsController {
   })
   @UseGuards(EmailVerifiedGuard)
   @ApiOperation({ summary: "Resend a pending transfer verification code" })
+  @ApiCreatedResponse({ type: MessageResponseDto })
   @Post(":id/verification-code")
   resendCode(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.transactionsService.resendVerificationCode(user.id, id);
@@ -126,6 +137,7 @@ export class TransactionsController {
   })
   @CustomerTransactionFilterApiQueries()
   @PaginationApiQueries(50)
+  @ApiOkResponse({ type: PaginatedTransactionsResponseDto })
   @Get()
   list(
     @CurrentUser() user: AuthUser,
@@ -171,6 +183,7 @@ export class TransactionsController {
     });
   }
   @ApiOperation({ summary: "Get transaction details visible to the customer" })
+  @ApiOkResponse({ type: TransactionResponseDto })
   @Get(":id")
   detail(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.transactionsService.getDetail(user.id, id);
