@@ -166,6 +166,7 @@ To run one application at a time, use `pnpm dev:web` or `pnpm dev:api`.
 | `FRONTEND_URL`                    | Yes         | Exact browser origin permitted by API CORS, without a trailing slash.                   |
 | `API_PORT`                        | No          | API listening port; defaults to `3001`.                                                 |
 | `NEXT_PUBLIC_API_URL`             | No          | Browser-visible API base URL; defaults to `http://localhost:3001/api`.                  |
+| `NEXT_PUBLIC_SITE_URL`            | No          | Public frontend origin used for social previews, robots, and sitemap URLs.              |
 | `NODE_ENV`                        | No          | `development`, `test`, or `production`.                                                 |
 | `DEMO_FUNDING_ENABLED`            | No          | Enables controlled demo deposits. Defaults on outside production and off in production. |
 | `GEMINI_API_KEY`                  | Assistant   | Enables Gemini assistant responses.                                                     |
