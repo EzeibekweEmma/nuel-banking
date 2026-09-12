@@ -28,11 +28,15 @@ import {
 import { TransferRecordResponseDto } from "../documentation/dto/transaction-response.dto";
 import {
   AdminTransactionApiQueries,
+  CustomerAccountFilterApiQueries,
+  FraudAssessmentFilterApiQueries,
   PaginationApiQueries,
 } from "../documentation/query-parameters.decorator";
 import { TransactionsService } from "../transactions/transactions.service";
 import { AdminService } from "./admin.service";
 import { AccountControlDto } from "./dto/account-control.dto";
+import { CustomerQueryDto } from "./dto/customer-query.dto";
+import { FraudAssessmentQueryDto } from "./dto/fraud-assessment-query.dto";
 import { PaginationDto } from "./dto/pagination.dto";
 import { TransactionQueryDto } from "./dto/transaction-query.dto";
 
@@ -48,9 +52,9 @@ export class AdminController {
   ) {}
   @ApiOperation({ summary: "List customer accounts" })
   @ApiOkResponse({ type: PaginatedCustomersResponseDto })
-  @PaginationApiQueries()
+  @CustomerAccountFilterApiQueries()
   @Get("customers")
-  customers(@Query() query: PaginationDto) {
+  customers(@Query() query: CustomerQueryDto) {
     return this.adminService.customers(query);
   }
   @ApiOperation({ summary: "List and filter transactions" })
@@ -69,9 +73,9 @@ export class AdminController {
   }
   @ApiOperation({ summary: "List fraud assessments" })
   @ApiOkResponse({ type: PaginatedFraudAssessmentsResponseDto })
-  @PaginationApiQueries()
+  @FraudAssessmentFilterApiQueries()
   @Get("fraud-assessments")
-  assessments(@Query() query: PaginationDto) {
+  assessments(@Query() query: FraudAssessmentQueryDto) {
     return this.adminService.fraudAssessments(query);
   }
   @ApiOperation({ summary: "List security and administration audit logs" })

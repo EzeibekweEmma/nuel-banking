@@ -75,3 +75,52 @@ export function AdminTransactionApiQueries(): MethodDecorator {
     }),
   );
 }
+
+export function CustomerAccountFilterApiQueries(): MethodDecorator {
+  return applyDecorators(
+    PaginationApiQueries(),
+    ApiQuery({
+      name: "query",
+      required: false,
+      type: String,
+      maxLength: 100,
+      description: "Search by customer name, email, or account number.",
+      example: "Ada",
+    }),
+    ApiQuery({
+      name: "status",
+      required: false,
+      enum: ["ACTIVE", "FROZEN", "CLOSED"],
+    }),
+  );
+}
+
+export function FraudAssessmentFilterApiQueries(): MethodDecorator {
+  return applyDecorators(
+    PaginationApiQueries(),
+    ApiQuery({
+      name: "riskLevel",
+      required: false,
+      enum: ["LOW", "MEDIUM", "HIGH"],
+    }),
+    ApiQuery({
+      name: "decision",
+      required: false,
+      enum: ["APPROVE", "VERIFY", "HOLD"],
+    }),
+    ApiQuery({
+      name: "status",
+      required: false,
+      enum: transactionStatuses,
+    }),
+    ApiQuery({
+      name: "query",
+      required: false,
+      type: String,
+      maxLength: 100,
+      description:
+        "Search by transaction reference, customer name, or account number.",
+      example: "0123456789",
+    }),
+  );
+}

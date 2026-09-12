@@ -10,6 +10,7 @@ import {
 import { StatusBadge } from "../../../../components/status-badge";
 import {
   AdminAccount,
+  AdminCustomerFilters,
   AdminCustomer,
   api,
   ApiError,
@@ -22,8 +23,16 @@ interface AccountAction {
   mode: "freeze" | "unfreeze";
 }
 
+const PAGE_SIZE = 20;
+
 export default function CustomersPage() {
   const [items, setItems] = useState<AdminCustomer[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] =
+    useState<NonNullable<AdminCustomerFilters["status"]>>("ALL");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [action, setAction] = useState<AccountAction | null>(null);
   const [reason, setReason] = useState("");
@@ -31,11 +40,37 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api
-      .adminCustomers()
-      .then((result) => setItems(result.data))
-      .catch((reason: Error) => setError(reason.message));
-  }, []);
+    let active = true;
+    setError("");
+    const timer = window.setTimeout(
+      () => {
+        setLoading(true);
+        api
+          .adminCustomers({
+            page,
+            limit: PAGE_SIZE,
+            query: query.trim(),
+            status,
+          })
+          .then((result) => {
+            if (!active) return;
+            setItems(result.data);
+            setTotal(result.total);
+          })
+          .catch((reason: Error) => {
+            if (active) setError(reason.message);
+          })
+          .finally(() => {
+            if (active) setLoading(false);
+          });
+      },
+      query ? 300 : 0,
+    );
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [page, query, status]);
 
   function openAction(customer: AdminCustomer, account: AdminAccount): void {
     setAction({
@@ -71,17 +106,30 @@ export default function CustomersPage() {
         action.mode === "freeze"
           ? await api.freezeAccount(action.account.id, cleanReason)
           : await api.unfreezeAccount(action.account.id, cleanReason);
-      setItems(
-        (current) =>
-          current?.map((customer) => ({
-            ...customer,
-            accounts: customer.accounts.map((account) =>
-              account.id === updated.id
-                ? { ...account, status: updated.status }
-                : account,
-            ),
-          })) ?? null,
+      const leavesCurrentFilter = status !== "ALL" && updated.status !== status;
+      setItems((current) =>
+        current
+          ? current.flatMap((customer) => {
+              if (
+                leavesCurrentFilter &&
+                customer.accounts.some((account) => account.id === updated.id)
+              ) {
+                return [];
+              }
+              return [
+                {
+                  ...customer,
+                  accounts: customer.accounts.map((account) =>
+                    account.id === updated.id
+                      ? { ...account, status: updated.status }
+                      : account,
+                  ),
+                },
+              ];
+            })
+          : null,
       );
+      if (leavesCurrentFilter) setTotal((current) => Math.max(0, current - 1));
       closeAction();
       setAction(null);
     } catch (reason) {
@@ -95,8 +143,11 @@ export default function CustomersPage() {
     }
   }
 
-  if (error) return <ErrorState message={error} />;
+  if (error && !items) return <ErrorState message={error} />;
   if (!items) return <LoadingState />;
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const filtersActive = Boolean(query.trim() || status !== "ALL");
 
   return (
     <section>
@@ -111,11 +162,73 @@ export default function CustomersPage() {
           </p>
         </div>
         <span className="text-xs font-semibold text-[#71827d]">
-          {items.length} shown
+          {items.length} of {total} shown
         </span>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-[22px] border border-[#dce5e1] bg-white shadow-[0_16px_40px_-36px_rgba(13,56,45,.55)]">
+      <div className="mt-5 grid gap-3 rounded-[20px] border border-[#dce5e1] bg-white p-3 shadow-[0_14px_35px_-32px_rgba(13,56,45,.5)] sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:p-4">
+        <label className="relative block">
+          <span className="sr-only">Search customers</span>
+          <Icon
+            name="search"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#82918c]"
+          />
+          <input
+            type="search"
+            maxLength={100}
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search name, email or account"
+            className="h-11 w-full rounded-xl border border-[#d5dfdb] bg-[#f8faf9] pl-10 pr-4 text-sm text-[#18352e] outline-none transition placeholder:text-[#93a09c] focus:border-[#087a5b] focus:bg-white focus:ring-2 focus:ring-[#087a5b]/10"
+          />
+        </label>
+        <label>
+          <span className="sr-only">Account status</span>
+          <select
+            value={status}
+            onChange={(event) => {
+              setStatus(
+                event.target.value as NonNullable<
+                  AdminCustomerFilters["status"]
+                >,
+              );
+              setPage(1);
+            }}
+            className="h-11 w-full rounded-xl border border-[#d5dfdb] bg-[#f8faf9] px-3 text-sm font-semibold text-[#39574f] outline-none transition focus:border-[#087a5b] focus:bg-white focus:ring-2 focus:ring-[#087a5b]/10"
+          >
+            <option value="ALL">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="FROZEN">Frozen</option>
+            <option value="CLOSED">Closed</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          disabled={!filtersActive}
+          onClick={() => {
+            setQuery("");
+            setStatus("ALL");
+            setPage(1);
+          }}
+          className="h-11 rounded-xl border border-[#d5dfdb] px-4 text-xs font-bold text-[#526b64] transition hover:bg-[#f1f6f4] disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          Clear filters
+        </button>
+      </div>
+
+      {error && (
+        <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {error}
+        </p>
+      )}
+
+      <div
+        className={`mt-5 overflow-hidden rounded-[22px] border border-[#dce5e1] bg-white shadow-[0_16px_40px_-36px_rgba(13,56,45,.55)] transition-opacity ${loading ? "opacity-60" : "opacity-100"}`}
+        aria-busy={loading}
+      >
         {items.map((customer) => {
           const account = customer.accounts[0];
           const initials =
@@ -189,6 +302,35 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <nav
+          className="mt-4 flex items-center justify-between gap-3"
+          aria-label="Customer pagination"
+        >
+          <button
+            type="button"
+            disabled={page === 1 || loading}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            className="h-10 rounded-xl border border-[#d5dfdb] bg-white px-4 text-xs font-bold text-[#39574f] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            Previous
+          </button>
+          <span className="text-xs font-semibold text-[#71827d]">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={page === totalPages || loading}
+            onClick={() =>
+              setPage((current) => Math.min(totalPages, current + 1))
+            }
+            className="h-10 rounded-xl border border-[#d5dfdb] bg-white px-4 text-xs font-bold text-[#39574f] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            Next
+          </button>
+        </nav>
+      )}
 
       {action && (
         <div

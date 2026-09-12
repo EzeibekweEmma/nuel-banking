@@ -149,6 +149,20 @@ export interface TransactionFilters {
   from?: string;
   to?: string;
 }
+export interface AdminCustomerFilters {
+  page?: number;
+  limit?: number;
+  query?: string;
+  status?: "ALL" | AdminAccount["status"];
+}
+export interface FraudAssessmentFilters {
+  page?: number;
+  limit?: number;
+  query?: string;
+  riskLevel?: "ALL" | "LOW" | "MEDIUM" | "HIGH";
+  decision?: "ALL" | "APPROVE" | "VERIFY" | "HOLD";
+  status?: "ALL" | "PENDING" | "COMPLETED" | "HELD" | "REJECTED" | "FAILED";
+}
 export interface AdminTransaction extends Transaction {
   sourceAccount: {
     accountNumber: string;
@@ -277,7 +291,7 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
-function transactionQuery(filters: TransactionFilters = {}): string {
+function filterQuery(filters: object): string {
   const parameters = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== "" && value !== "ALL") {
@@ -286,6 +300,10 @@ function transactionQuery(filters: TransactionFilters = {}): string {
   });
   const query = parameters.toString();
   return query ? `?${query}` : "";
+}
+
+function transactionQuery(filters: TransactionFilters = {}): string {
+  return filterQuery(filters);
 }
 
 async function requestBlob(path: string, retry = true): Promise<Blob> {
@@ -425,8 +443,10 @@ export const api = {
     request<{ updated: number }>("/notifications/read-all", {
       method: "PATCH",
     }),
-  adminCustomers: (page = 1) =>
-    request<PageResult<AdminCustomer>>(`/admin/customers?page=${page}`),
+  adminCustomers: (filters: AdminCustomerFilters = {}) =>
+    request<PageResult<AdminCustomer>>(
+      `/admin/customers${filterQuery(filters)}`,
+    ),
   freezeAccount: (id: string, reason: string) =>
     request<{ id: string; accountNumber: string; status: "FROZEN" }>(
       `/admin/accounts/${id}/freeze`,
@@ -445,9 +465,9 @@ export const api = {
     request<PageResult<AdminTransaction>>(
       `/admin/transactions/held?page=${page}`,
     ),
-  adminAssessments: (page = 1) =>
+  adminAssessments: (filters: FraudAssessmentFilters = {}) =>
     request<PageResult<FraudAssessment>>(
-      `/admin/fraud-assessments?page=${page}`,
+      `/admin/fraud-assessments${filterQuery(filters)}`,
     ),
   adminAuditLogs: (page = 1) =>
     request<PageResult<AuditLog>>(`/admin/audit-logs?page=${page}`),

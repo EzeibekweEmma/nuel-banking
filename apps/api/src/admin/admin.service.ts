@@ -7,10 +7,13 @@ import {
 import {
   AccountStatus,
   AuditAction,
+  Prisma,
   TransactionStatus,
   UserRole,
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { CustomerQueryDto } from "./dto/customer-query.dto";
+import { FraudAssessmentQueryDto } from "./dto/fraud-assessment-query.dto";
 import { PaginationDto } from "./dto/pagination.dto";
 import { TransactionQueryDto } from "./dto/transaction-query.dto";
 
@@ -18,10 +21,29 @@ import { TransactionQueryDto } from "./dto/transaction-query.dto";
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async customers(query: PaginationDto) {
+  async customers(query: CustomerQueryDto) {
+    const search = query.query?.trim();
+    const where: Prisma.UserWhereInput = {
+      role: UserRole.CUSTOMER,
+      ...(query.status ? { accounts: { some: { status: query.status } } } : {}),
+      ...(search
+        ? {
+            OR: [
+              { email: { contains: search, mode: "insensitive" } },
+              { firstName: { contains: search, mode: "insensitive" } },
+              { lastName: { contains: search, mode: "insensitive" } },
+              {
+                accounts: {
+                  some: { accountNumber: { contains: search } },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
-        where: { role: "CUSTOMER" },
+        where,
         select: {
           id: true,
           email: true,
@@ -46,7 +68,7 @@ export class AdminService {
         skip: this.skip(query),
         take: query.limit,
       }),
-      this.prisma.user.count({ where: { role: "CUSTOMER" } }),
+      this.prisma.user.count({ where }),
     ]);
     return { data, total, page: query.page, limit: query.limit };
   }
@@ -90,9 +112,86 @@ export class AdminService {
     return this.transactions({ ...query, status: TransactionStatus.HELD });
   }
 
-  async fraudAssessments(query: PaginationDto) {
+  async fraudAssessments(query: FraudAssessmentQueryDto) {
+    const search = query.query?.trim();
+    const transactionWhere: Prisma.TransactionWhereInput = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { reference: { contains: search, mode: "insensitive" } },
+              {
+                sourceAccount: {
+                  is: {
+                    OR: [
+                      { accountNumber: { contains: search } },
+                      {
+                        user: {
+                          is: {
+                            OR: [
+                              {
+                                firstName: {
+                                  contains: search,
+                                  mode: "insensitive",
+                                },
+                              },
+                              {
+                                lastName: {
+                                  contains: search,
+                                  mode: "insensitive",
+                                },
+                              },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+              {
+                destinationAccount: {
+                  is: {
+                    OR: [
+                      { accountNumber: { contains: search } },
+                      {
+                        user: {
+                          is: {
+                            OR: [
+                              {
+                                firstName: {
+                                  contains: search,
+                                  mode: "insensitive",
+                                },
+                              },
+                              {
+                                lastName: {
+                                  contains: search,
+                                  mode: "insensitive",
+                                },
+                              },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    const where: Prisma.FraudAssessmentWhereInput = {
+      ...(query.riskLevel ? { riskLevel: query.riskLevel } : {}),
+      ...(query.decision ? { decision: query.decision } : {}),
+      ...(query.status || search
+        ? { transaction: { is: transactionWhere } }
+        : {}),
+    };
     const [data, total] = await Promise.all([
       this.prisma.fraudAssessment.findMany({
+        where,
         include: {
           transaction: {
             select: {
@@ -120,7 +219,7 @@ export class AdminService {
         skip: this.skip(query),
         take: query.limit,
       }),
-      this.prisma.fraudAssessment.count(),
+      this.prisma.fraudAssessment.count({ where }),
     ]);
     return { data, total, page: query.page, limit: query.limit };
   }
