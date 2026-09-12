@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Param,
   Patch,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -18,9 +19,11 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
 import {
-  NotificationResponseDto,
+  PaginatedNotificationsResponseDto,
   UpdatedCountResponseDto,
 } from "../documentation/dto/notification-response.dto";
+import { NotificationFilterApiQueries } from "../documentation/query-parameters.decorator";
+import { NotificationQueryDto } from "./dto/notification-query.dto";
 import { NotificationsService } from "./notifications.service";
 
 @ApiTags("Notifications")
@@ -30,10 +33,11 @@ import { NotificationsService } from "./notifications.service";
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
   @ApiOperation({ summary: "List customer notifications" })
-  @ApiOkResponse({ type: [NotificationResponseDto] })
+  @ApiOkResponse({ type: PaginatedNotificationsResponseDto })
+  @NotificationFilterApiQueries()
   @Get()
-  list(@CurrentUser() user: AuthUser) {
-    return this.notificationsService.list(user.id);
+  list(@CurrentUser() user: AuthUser, @Query() query: NotificationQueryDto) {
+    return this.notificationsService.list(user.id, query);
   }
   @ApiOperation({ summary: "Mark every notification as read" })
   @ApiOkResponse({ type: UpdatedCountResponseDto })

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AdminListPagination } from "../../../../components/admin-list-pagination";
+import { ListPagination } from "../../../../components/list-pagination";
 import { Icon } from "../../../../components/icons";
 import {
   EmptyState,
@@ -245,7 +245,7 @@ export default function AuditLogsPage() {
         )}
       </div>
 
-      <AdminListPagination
+      <ListPagination
         page={page}
         total={total}
         limit={PAGE_SIZE}

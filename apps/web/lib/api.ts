@@ -136,6 +136,15 @@ export interface PageResult<T> {
   limit: number;
   totalPages?: number;
 }
+export interface NotificationPageResult extends PageResult<Notification> {
+  totalPages: number;
+  unread: number;
+}
+export interface NotificationFilters {
+  page?: number;
+  limit?: number;
+  unreadOnly?: boolean;
+}
 export interface TransactionPageResult extends PageResult<Transaction> {
   totalPages: number;
   summary: { moneyIn: string; moneyOut: string };
@@ -455,7 +464,8 @@ export const api = {
     }),
   removeBeneficiary: (id: string) =>
     request<void>(`/beneficiaries/${id}`, { method: "DELETE" }),
-  notifications: () => request<Notification[]>("/notifications"),
+  notifications: (filters: NotificationFilters = {}) =>
+    request<NotificationPageResult>(`/notifications${filterQuery(filters)}`),
   markNotificationRead: (id: string) =>
     request<void>(`/notifications/${id}/read`, { method: "PATCH" }),
   markAllNotificationsRead: () =>

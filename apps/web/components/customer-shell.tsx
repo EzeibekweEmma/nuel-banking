@@ -56,14 +56,17 @@ export function CustomerShell({ children }: { children: ReactNode }) {
       router.replace("/login");
       return;
     }
-    Promise.all([api.me(), api.notifications()])
+    Promise.all([
+      api.me(),
+      api.notifications({ page: 1, limit: 1, unreadOnly: true }),
+    ])
       .then(([nextUser, notifications]) => {
         if (nextUser.role === "ADMIN") {
           router.replace("/admin");
           return;
         }
         setUser(nextUser);
-        setUnread(notifications.filter((item) => !item.isRead).length);
+        setUnread(notifications.unread);
       })
       .catch(() => {
         clearTokens();
@@ -76,8 +79,8 @@ export function CustomerShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const updateUnread = () => {
       void api
-        .notifications()
-        .then((items) => setUnread(items.filter((item) => !item.isRead).length))
+        .notifications({ page: 1, limit: 1, unreadOnly: true })
+        .then((result) => setUnread(result.unread))
         .catch(() => undefined);
     };
     window.addEventListener("notifications-updated", updateUnread);

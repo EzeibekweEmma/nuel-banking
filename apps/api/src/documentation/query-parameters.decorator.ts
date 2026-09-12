@@ -57,6 +57,19 @@ export function PaginationApiQueries(maximumLimit = 100): MethodDecorator {
   );
 }
 
+export function NotificationFilterApiQueries(): MethodDecorator {
+  return applyDecorators(
+    PaginationApiQueries(50),
+    ApiQuery({
+      name: "unreadOnly",
+      required: false,
+      type: Boolean,
+      example: true,
+      description: "Return only notifications that have not been read.",
+    }),
+  );
+}
+
 export function CustomerTransactionFilterApiQueries(): MethodDecorator {
   return applyDecorators(
     ApiQuery({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ListPagination } from "../../../components/list-pagination";
 import {
   EmptyState,
   ErrorState,
@@ -16,32 +17,66 @@ const notificationIcons: Record<string, IconName> = {
   TRANSACTION_UPDATE: "receipt",
 };
 
+const PAGE_SIZE = 20;
+
 export default function NotificationsPage() {
   const [items, setItems] = useState<Notification[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [unread, setUnread] = useState(0);
+  const [page, setPage] = useState(1);
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [markingAll, setMarkingAll] = useState(false);
-  const load = () =>
-    api
-      .notifications()
-      .then(setItems)
-      .catch((reason: Error) => setError(reason.message));
-  useEffect(() => {
-    void load();
-  }, []);
+  const [markingId, setMarkingId] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  if (error) return <ErrorState message={error} />;
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    api
+      .notifications({ page, limit: PAGE_SIZE, unreadOnly })
+      .then((result) => {
+        if (!active) return;
+        if (result.total > 0 && page > result.totalPages) {
+          setPage(result.totalPages);
+          return;
+        }
+        setItems(result.data);
+        setTotal(result.total);
+        setUnread(result.unread);
+      })
+      .catch((reason: Error) => {
+        if (active) setError(reason.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [page, reloadKey, unreadOnly]);
+
+  if (error && !items) return <ErrorState message={error} />;
   if (!items) return <LoadingState />;
-  const unread = items.filter((item) => !item.isRead).length;
 
   async function markAllRead(): Promise<void> {
     setMarkingAll(true);
     setError("");
     try {
       await api.markAllNotificationsRead();
-      setItems(
-        (current) =>
-          current?.map((item) => ({ ...item, isRead: true })) ?? null,
-      );
+      setUnread(0);
+      if (unreadOnly) {
+        setItems([]);
+        setTotal(0);
+        setPage(1);
+      } else {
+        setItems(
+          (current) =>
+            current?.map((item) => ({ ...item, isRead: true })) ?? null,
+        );
+      }
       window.dispatchEvent(new Event("notifications-updated"));
     } catch (reason) {
       setError(
@@ -54,9 +89,51 @@ export default function NotificationsPage() {
     }
   }
 
+  async function markRead(item: Notification): Promise<void> {
+    if (item.isRead || markingId) return;
+    setMarkingId(item.id);
+    setError("");
+    try {
+      await api.markNotificationRead(item.id);
+      setUnread((current) => Math.max(0, current - 1));
+      if (unreadOnly) {
+        const remainingOnPage = Math.max(0, (items?.length ?? 1) - 1);
+        setItems(
+          (current) =>
+            current?.filter((notification) => notification.id !== item.id) ??
+            null,
+        );
+        setTotal((current) => Math.max(0, current - 1));
+        if (remainingOnPage === 0 && page > 1) {
+          setPage((current) => current - 1);
+        } else {
+          setReloadKey((current) => current + 1);
+        }
+      } else {
+        setItems(
+          (current) =>
+            current?.map((notification) =>
+              notification.id === item.id
+                ? { ...notification, isRead: true }
+                : notification,
+            ) ?? null,
+        );
+      }
+      window.dispatchEvent(new Event("notifications-updated"));
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to update the notification.",
+      );
+    } finally {
+      setMarkingId(null);
+    }
+  }
+
   return (
     <section className="max-w-3xl">
-      <div className="flex flex-col gap-4 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-bold text-[#18352e]">Updates for you</h2>
           <p className="mt-1 text-sm text-[#788883]">
@@ -78,29 +155,66 @@ export default function NotificationsPage() {
           </button>
         )}
       </div>
-      <div className="mt-5 overflow-hidden rounded-[22px] border border-[#dce5e1] bg-white p-1 min-[380px]:p-2 sm:rounded-3xl sm:p-3">
+
+      <div className="mt-5 flex flex-col gap-3 rounded-[20px] border border-[#dce5e1] bg-white p-3 shadow-[0_14px_35px_-32px_rgba(13,56,45,.5)] min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between sm:p-4">
+        <div
+          className="inline-flex rounded-xl bg-[#eef4f1] p-1"
+          aria-label="Notification filters"
+        >
+          <button
+            type="button"
+            aria-pressed={!unreadOnly}
+            onClick={() => {
+              setUnreadOnly(false);
+              setPage(1);
+            }}
+            className={`h-9 rounded-lg px-4 text-xs font-bold transition ${
+              !unreadOnly
+                ? "bg-white text-[#087a5b] shadow-sm"
+                : "text-[#63766f] hover:text-[#18352e]"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            aria-pressed={unreadOnly}
+            onClick={() => {
+              setUnreadOnly(true);
+              setPage(1);
+            }}
+            className={`h-9 rounded-lg px-4 text-xs font-bold transition ${
+              unreadOnly
+                ? "bg-white text-[#087a5b] shadow-sm"
+                : "text-[#63766f] hover:text-[#18352e]"
+            }`}
+          >
+            Unread{unread > 0 ? ` (${unread})` : ""}
+          </button>
+        </div>
+        <span className="text-xs font-semibold text-[#71827d]">
+          {items.length} of {total} shown
+        </span>
+      </div>
+
+      {error && (
+        <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {error}
+        </p>
+      )}
+
+      <div
+        className={`mt-5 overflow-hidden rounded-[22px] border border-[#dce5e1] bg-white p-1 transition-opacity min-[380px]:p-2 sm:rounded-3xl sm:p-3 ${loading ? "opacity-60" : "opacity-100"}`}
+        aria-busy={loading}
+      >
         {items.map((item) => (
           <button
+            type="button"
             key={item.id}
-            onClick={() =>
-              !item.isRead &&
-              api
-                .markNotificationRead(item.id)
-                .then(() => {
-                  setItems(
-                    (current) =>
-                      current?.map((notification) =>
-                        notification.id === item.id
-                          ? { ...notification, isRead: true }
-                          : notification,
-                      ) ?? null,
-                  );
-                  window.dispatchEvent(new Event("notifications-updated"));
-                })
-                .catch((reason: Error) => setError(reason.message))
-            }
+            disabled={item.isRead || markingId !== null}
+            onClick={() => void markRead(item)}
             className={
-              "relative flex w-full items-start gap-3 rounded-2xl p-3 text-left transition hover:bg-[#f4f8f6] min-[380px]:p-4 sm:gap-4 " +
+              "relative flex w-full items-start gap-3 rounded-2xl p-3 text-left transition enabled:hover:bg-[#f4f8f6] disabled:cursor-default min-[380px]:p-4 sm:gap-4 " +
               (!item.isRead ? "bg-[#f0f8f5]" : "")
             }
           >
@@ -134,9 +248,23 @@ export default function NotificationsPage() {
           </button>
         ))}
         {items.length === 0 && (
-          <EmptyState message="Important account and transaction updates will appear here." />
+          <EmptyState
+            message={
+              unreadOnly
+                ? "You have no unread notifications."
+                : "Important account and transaction updates will appear here."
+            }
+          />
         )}
       </div>
+      <ListPagination
+        page={page}
+        total={total}
+        limit={PAGE_SIZE}
+        loading={loading}
+        label="Notifications"
+        onPageChange={setPage}
+      />
     </section>
   );
 }

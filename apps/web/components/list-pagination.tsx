@@ -1,4 +1,4 @@
-interface AdminListPaginationProps {
+interface ListPaginationProps {
   page: number;
   total: number;
   limit: number;
@@ -7,14 +7,14 @@ interface AdminListPaginationProps {
   onPageChange: (page: number) => void;
 }
 
-export function AdminListPagination({
+export function ListPagination({
   page,
   total,
   limit,
   loading,
   label,
   onPageChange,
-}: AdminListPaginationProps) {
+}: ListPaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   if (totalPages <= 1) return null;
 

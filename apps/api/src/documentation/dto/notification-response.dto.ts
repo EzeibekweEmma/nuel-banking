@@ -23,6 +23,26 @@ export class NotificationResponseDto {
   createdAt!: string;
 }
 
+export class PaginatedNotificationsResponseDto {
+  @ApiProperty({ type: [NotificationResponseDto] })
+  data!: NotificationResponseDto[];
+
+  @ApiProperty({ example: 28 })
+  total!: number;
+
+  @ApiProperty({ example: 4 })
+  unread!: number;
+
+  @ApiProperty({ example: 1 })
+  page!: number;
+
+  @ApiProperty({ example: 20 })
+  limit!: number;
+
+  @ApiProperty({ example: 2 })
+  totalPages!: number;
+}
+
 export class UpdatedCountResponseDto {
   @ApiProperty({ example: 3 })
   updated!: number;

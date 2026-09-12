@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AdminListPagination } from "../../../../components/admin-list-pagination";
+import { ListPagination } from "../../../../components/list-pagination";
 import { AdminTransactionList } from "../../../../components/admin-transaction-list";
 import { Icon } from "../../../../components/icons";
 import {
@@ -189,7 +189,7 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      <AdminListPagination
+      <ListPagination
         page={page}
         total={total}
         limit={PAGE_SIZE}
