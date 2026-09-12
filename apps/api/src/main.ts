@@ -6,6 +6,7 @@ import { NextFunction, Request, Response } from "express";
 import { AppModule } from "./app.module";
 import {
   setupSwagger,
+  SWAGGER_ASSET_ORIGIN,
   SWAGGER_JSON_PATH,
   SWAGGER_PATH,
 } from "./documentation/swagger";
@@ -22,7 +23,7 @@ async function bootstrap(): Promise<void> {
     response.setHeader(
       "Content-Security-Policy",
       documentationRequest
-        ? "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'none'"
+        ? `default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' ${SWAGGER_ASSET_ORIGIN}; script-src 'self' 'unsafe-inline' ${SWAGGER_ASSET_ORIGIN}; font-src 'self' data:; frame-ancestors 'none'`
         : "default-src 'none'; frame-ancestors 'none'",
     );
     response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
