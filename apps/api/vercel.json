@@ -1,11 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nestjs",
-  "functions": {
-    "src/main.ts": {
-      "maxDuration": 300
-    }
-  },
   "crons": [
     {
       "path": "/api/internal/email-jobs/process",
