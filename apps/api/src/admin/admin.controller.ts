@@ -20,6 +20,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
 import {
   AccountControlResponseDto,
+  AdminOverviewResponseDto,
   PaginatedAdminTransactionsResponseDto,
   PaginatedAuditLogsResponseDto,
   PaginatedCustomersResponseDto,
@@ -52,6 +53,12 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly transactionsService: TransactionsService,
   ) {}
+  @ApiOperation({ summary: "Get administration and fraud overview totals" })
+  @ApiOkResponse({ type: AdminOverviewResponseDto })
+  @Get("overview")
+  overview() {
+    return this.adminService.overview();
+  }
   @ApiOperation({ summary: "List customer accounts" })
   @ApiOkResponse({ type: PaginatedCustomersResponseDto })
   @CustomerAccountFilterApiQueries()

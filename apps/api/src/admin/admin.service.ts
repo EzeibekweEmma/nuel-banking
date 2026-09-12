@@ -7,6 +7,8 @@ import {
 import {
   AccountStatus,
   AuditAction,
+  FraudDecision,
+  FraudRiskLevel,
   Prisma,
   TransactionStatus,
   UserRole,
@@ -22,6 +24,66 @@ import { TransactionQueryDto } from "./dto/transaction-query.dto";
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async overview() {
+    const [
+      customers,
+      transactions,
+      held,
+      assessments,
+      riskGroups,
+      decisionGroups,
+    ] = await Promise.all([
+      this.prisma.user.count({ where: { role: UserRole.CUSTOMER } }),
+      this.prisma.transaction.count(),
+      this.prisma.transaction.count({
+        where: { status: TransactionStatus.HELD },
+      }),
+      this.prisma.fraudAssessment.count(),
+      this.prisma.fraudAssessment.groupBy({
+        by: ["riskLevel"],
+        _count: { _all: true },
+      }),
+      this.prisma.fraudAssessment.groupBy({
+        by: ["decision"],
+        _count: { _all: true },
+      }),
+    ]);
+    const riskCounts: Record<FraudRiskLevel, number> = {
+      [FraudRiskLevel.LOW]: 0,
+      [FraudRiskLevel.MEDIUM]: 0,
+      [FraudRiskLevel.HIGH]: 0,
+    };
+    for (const group of riskGroups) {
+      riskCounts[group.riskLevel] = group._count._all;
+    }
+    const decisionCounts: Record<FraudDecision, number> = {
+      [FraudDecision.APPROVE]: 0,
+      [FraudDecision.VERIFY]: 0,
+      [FraudDecision.HOLD]: 0,
+    };
+    for (const group of decisionGroups) {
+      decisionCounts[group.decision] = group._count._all;
+    }
+    return {
+      customers,
+      transactions,
+      held,
+      assessments,
+      fraud: {
+        risk: {
+          low: riskCounts.LOW,
+          medium: riskCounts.MEDIUM,
+          high: riskCounts.HIGH,
+        },
+        decisions: {
+          approve: decisionCounts.APPROVE,
+          verify: decisionCounts.VERIFY,
+          hold: decisionCounts.HOLD,
+        },
+      },
+    };
+  }
 
   async customers(query: CustomerQueryDto) {
     const search = query.query?.trim();

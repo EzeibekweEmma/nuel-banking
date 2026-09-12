@@ -6,6 +6,53 @@ import {
   TransferRecordResponseDto,
 } from "./transaction-response.dto";
 
+export class AdminFraudRiskSummaryResponseDto {
+  @ApiProperty({ example: 1148 })
+  low!: number;
+
+  @ApiProperty({ example: 210 })
+  medium!: number;
+
+  @ApiProperty({ example: 393 })
+  high!: number;
+}
+
+export class AdminFraudDecisionSummaryResponseDto {
+  @ApiProperty({ example: 1148 })
+  approve!: number;
+
+  @ApiProperty({ example: 210 })
+  verify!: number;
+
+  @ApiProperty({ example: 393 })
+  hold!: number;
+}
+
+export class AdminFraudSummaryResponseDto {
+  @ApiProperty({ type: () => AdminFraudRiskSummaryResponseDto })
+  risk!: AdminFraudRiskSummaryResponseDto;
+
+  @ApiProperty({ type: () => AdminFraudDecisionSummaryResponseDto })
+  decisions!: AdminFraudDecisionSummaryResponseDto;
+}
+
+export class AdminOverviewResponseDto {
+  @ApiProperty({ example: 302 })
+  customers!: number;
+
+  @ApiProperty({ example: 1753 })
+  transactions!: number;
+
+  @ApiProperty({ example: 194 })
+  held!: number;
+
+  @ApiProperty({ example: 1753 })
+  assessments!: number;
+
+  @ApiProperty({ type: () => AdminFraudSummaryResponseDto })
+  fraud!: AdminFraudSummaryResponseDto;
+}
+
 export class AdminAccountSummaryResponseDto {
   @ApiProperty({ example: "cmf8account01q2w3e4r5t6y7u" })
   id!: string;

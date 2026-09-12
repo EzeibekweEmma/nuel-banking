@@ -2,36 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { FraudOverviewChart } from "../../../components/fraud-overview-chart";
 import { ErrorState, LoadingState } from "../../../components/page-state";
 import { Icon, IconName } from "../../../components/icons";
-import { api } from "../../../lib/api";
-
-interface Overview {
-  customers: number;
-  transactions: number;
-  held: number;
-  assessments: number;
-}
+import { AdminOverview, api } from "../../../lib/api";
 
 export default function AdminOverviewPage() {
-  const [data, setData] = useState<Overview | null>(null);
+  const [data, setData] = useState<AdminOverview | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      api.adminCustomers(),
-      api.adminTransactions(),
-      api.adminHeldTransactions(),
-      api.adminAssessments(),
-    ])
-      .then(([customers, transactions, held, assessments]) =>
-        setData({
-          customers: customers.total,
-          transactions: transactions.total,
-          held: held.total,
-          assessments: assessments.total,
-        }),
-      )
+    api
+      .adminOverview()
+      .then(setData)
       .catch((reason: Error) => setError(reason.message));
   }, []);
 
@@ -122,6 +105,7 @@ export default function AdminOverviewPage() {
           </Link>
         ))}
       </div>
+      <FraudOverviewChart fraud={data.fraud} total={data.assessments} />
     </section>
   );
 }

@@ -22,6 +22,7 @@ describe("Admin filters", () => {
     fraudAssessment: {
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
     transaction: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -35,6 +36,36 @@ describe("Admin filters", () => {
   const service = new AdminService(prisma as never);
 
   beforeEach(() => jest.clearAllMocks());
+
+  it("returns normalized administration and fraud overview totals", async () => {
+    prisma.user.count.mockResolvedValueOnce(302);
+    prisma.transaction.count
+      .mockResolvedValueOnce(1753)
+      .mockResolvedValueOnce(194);
+    prisma.fraudAssessment.count.mockResolvedValueOnce(1753);
+    prisma.fraudAssessment.groupBy
+      .mockResolvedValueOnce([
+        { riskLevel: FraudRiskLevel.LOW, _count: { _all: 1148 } },
+        { riskLevel: FraudRiskLevel.MEDIUM, _count: { _all: 210 } },
+        { riskLevel: FraudRiskLevel.HIGH, _count: { _all: 393 } },
+      ])
+      .mockResolvedValueOnce([
+        { decision: FraudDecision.APPROVE, _count: { _all: 1148 } },
+        { decision: FraudDecision.VERIFY, _count: { _all: 210 } },
+        { decision: FraudDecision.HOLD, _count: { _all: 393 } },
+      ]);
+
+    await expect(service.overview()).resolves.toEqual({
+      customers: 302,
+      transactions: 1753,
+      held: 194,
+      assessments: 1753,
+      fraud: {
+        risk: { low: 1148, medium: 210, high: 393 },
+        decisions: { approve: 1148, verify: 210, hold: 393 },
+      },
+    });
+  });
 
   it("filters customers by status and searchable identity fields", async () => {
     await service.customers({

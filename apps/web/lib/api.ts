@@ -233,6 +233,16 @@ export interface AuditLog {
   user: { email: string } | null;
   metadata: Record<string, unknown> | null;
 }
+export interface AdminOverview {
+  customers: number;
+  transactions: number;
+  held: number;
+  assessments: number;
+  fraud: {
+    risk: { low: number; medium: number; high: number };
+    decisions: { approve: number; verify: number; hold: number };
+  };
+}
 
 function getTokens(): StoredTokens | null {
   if (typeof window === "undefined") return null;
@@ -472,6 +482,7 @@ export const api = {
     request<{ updated: number }>("/notifications/read-all", {
       method: "PATCH",
     }),
+  adminOverview: () => request<AdminOverview>("/admin/overview"),
   adminCustomers: (filters: AdminCustomerFilters = {}) =>
     request<PageResult<AdminCustomer>>(
       `/admin/customers${filterQuery(filters)}`,
