@@ -23,4 +23,8 @@ export class TransactionVerificationMailer {
       ...delivery,
     });
   }
+
+  scheduleDelivery(): void {
+    this.emailOutbox.scheduleProcessing();
+  }
 }

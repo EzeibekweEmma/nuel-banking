@@ -115,6 +115,7 @@ export class AuthService {
       });
       return createdUser;
     });
+    this.emailOutbox.scheduleProcessing();
 
     return this.issueTokens(user, sessionContext);
   }
@@ -231,6 +232,7 @@ export class AuthService {
         },
       });
     });
+    this.emailOutbox.scheduleProcessing();
 
     return process.env.NODE_ENV !== "production"
       ? { message, resetUrl }
@@ -400,6 +402,7 @@ export class AuthService {
         },
       });
     });
+    this.emailOutbox.scheduleProcessing();
 
     const message = "We sent a new verification link to your email address.";
     return process.env.NODE_ENV !== "production"

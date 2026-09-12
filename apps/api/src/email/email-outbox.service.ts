@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-  OnModuleDestroy,
-} from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EmailJob, EmailJobStatus, EmailJobType, Prisma } from "@prisma/client";
 import {
@@ -16,40 +11,25 @@ import { createTransport } from "nodemailer";
 import { createEmailVerificationEmail } from "../auth/email-verification-email";
 import { createPasswordResetEmail } from "../auth/password-reset-email";
 import { PrismaService } from "../prisma/prisma.service";
+import { extendVercelRequestLifetime } from "../platform/vercel-request-lifetime";
 import { createTransactionVerificationEmail } from "../transactions/transaction-verification-email";
 import { EmailJobPayload, isEmailJobPayload } from "./email-job.types";
 
 type EmailJobClient = Pick<Prisma.TransactionClient, "emailJob">;
 
-const POLL_INTERVAL_MS = 2_000;
 const STALE_LOCK_MS = 5 * 60 * 1000;
-const MAXIMUM_JOBS_PER_RUN = 10;
-const RETRY_DELAYS_MS = [30_000, 2 * 60_000, 10 * 60_000];
+const MAXIMUM_JOBS_PER_RUN = 25;
+const RETRY_DELAYS_MS = [1_000, 3_000, 8_000];
 
 @Injectable()
-export class EmailOutboxService
-  implements OnApplicationBootstrap, OnModuleDestroy
-{
+export class EmailOutboxService {
   private readonly logger = new Logger(EmailOutboxService.name);
-  private interval?: NodeJS.Timeout;
   private processing = false;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {}
-
-  onApplicationBootstrap(): void {
-    void this.processPendingJobs();
-    this.interval = setInterval(() => {
-      void this.processPendingJobs();
-    }, POLL_INTERVAL_MS);
-    this.interval.unref();
-  }
-
-  onModuleDestroy(): void {
-    if (this.interval) clearInterval(this.interval);
-  }
 
   async enqueue(
     client: EmailJobClient,
@@ -63,14 +43,21 @@ export class EmailOutboxService
     });
   }
 
-  async processPendingJobs(): Promise<void> {
-    if (this.processing) return;
+  scheduleProcessing(): void {
+    const processing = this.processPendingJobs();
+    if (!extendVercelRequestLifetime(processing)) void processing;
+  }
+
+  async processPendingJobs(): Promise<number> {
+    if (this.processing) return 0;
     this.processing = true;
+    let processed = 0;
     try {
       for (let index = 0; index < MAXIMUM_JOBS_PER_RUN; index += 1) {
         const job = await this.claimNextJob();
         if (!job) break;
         await this.processJob(job);
+        processed += 1;
       }
     } catch (error: unknown) {
       this.logger.error(
@@ -79,6 +66,7 @@ export class EmailOutboxService
     } finally {
       this.processing = false;
     }
+    return processed;
   }
 
   private async claimNextJob(): Promise<EmailJob | null> {
@@ -110,25 +98,57 @@ export class EmailOutboxService
   }
 
   private async processJob(job: EmailJob): Promise<void> {
+    let payload: EmailJobPayload;
     try {
-      const payload = this.decrypt(job.encryptedPayload);
+      payload = this.decrypt(job.encryptedPayload);
       if (payload.kind !== job.type) throw new Error("EMAIL_JOB_TYPE_MISMATCH");
-      if (!(await this.isRelatedTokenActive(payload))) {
-        await this.failPermanently(job.id, "RELATED_TOKEN_INACTIVE");
-        return;
-      }
-      await this.send(payload);
-      await this.prisma.emailJob.updateMany({
-        where: { id: job.id, status: EmailJobStatus.PROCESSING },
-        data: {
-          status: EmailJobStatus.SENT,
-          sentAt: new Date(),
-          lockedAt: null,
-          lastError: null,
-        },
-      });
     } catch (error: unknown) {
-      await this.retryOrFail(job, this.errorCode(error));
+      await this.failPermanently(job.id, this.errorCode(error));
+      return;
+    }
+    if (!(await this.isRelatedTokenActive(payload))) {
+      await this.failPermanently(job.id, "RELATED_TOKEN_INACTIVE");
+      return;
+    }
+
+    let attempts = job.attempts;
+    while (attempts <= job.maxAttempts) {
+      try {
+        await this.send(payload);
+        await this.prisma.emailJob.updateMany({
+          where: { id: job.id, status: EmailJobStatus.PROCESSING },
+          data: {
+            status: EmailJobStatus.SENT,
+            sentAt: new Date(),
+            lockedAt: null,
+            lastError: null,
+          },
+        });
+        return;
+      } catch (error: unknown) {
+        const errorCode = this.errorCode(error);
+        if (attempts >= job.maxAttempts) {
+          await this.failPermanently(job.id, errorCode);
+          this.logger.error(
+            `Email job ${job.id} failed after ${attempts} attempts (${errorCode}).`,
+          );
+          return;
+        }
+        const reserved = await this.prisma.emailJob.updateMany({
+          where: {
+            id: job.id,
+            status: EmailJobStatus.PROCESSING,
+            attempts,
+          },
+          data: {
+            attempts: { increment: 1 },
+            lastError: errorCode,
+          },
+        });
+        if (reserved.count !== 1) return;
+        await this.delay(RETRY_DELAYS_MS[attempts - 1]);
+        attempts += 1;
+      }
     }
   }
 
@@ -198,26 +218,6 @@ export class EmailOutboxService
     } finally {
       transport.close();
     }
-  }
-
-  private async retryOrFail(job: EmailJob, errorCode: string): Promise<void> {
-    if (job.attempts >= job.maxAttempts) {
-      await this.failPermanently(job.id, errorCode);
-      this.logger.error(
-        `Email job ${job.id} failed after ${job.attempts} attempts (${errorCode}).`,
-      );
-      return;
-    }
-    const delay = RETRY_DELAYS_MS[Math.min(job.attempts - 1, 2)];
-    await this.prisma.emailJob.updateMany({
-      where: { id: job.id, status: EmailJobStatus.PROCESSING },
-      data: {
-        status: EmailJobStatus.PENDING,
-        availableAt: new Date(Date.now() + delay),
-        lockedAt: null,
-        lastError: errorCode,
-      },
-    });
   }
 
   private async failPermanently(id: string, reason: string): Promise<void> {
@@ -293,5 +293,9 @@ export class EmailOutboxService
       return String(error.code).slice(0, 80);
     }
     return "EMAIL_DELIVERY_FAILED";
+  }
+
+  private async delay(milliseconds: number): Promise<void> {
+    await new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
   }
 }

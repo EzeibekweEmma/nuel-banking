@@ -49,7 +49,10 @@ describe("AuthService", () => {
     getOrThrow: jest.fn().mockReturnValue("test-secret"),
     get: jest.fn(),
   };
-  const emailOutbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
+  const emailOutbox = {
+    enqueue: jest.fn().mockResolvedValue(undefined),
+    scheduleProcessing: jest.fn(),
+  };
   const service = new AuthService(
     prismaClient as never,
     jwt as never as JwtService,

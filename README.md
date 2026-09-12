@@ -1,6 +1,6 @@
 # Nuel Bank
 
-Nuel Bank is an full-stack banking application built with Next.js, NestJS, PostgreSQL, Prisma, JWT authentication, Gemini-powered assistance, and a rule-based fraud engine.
+Nuel Bank is a full-stack banking application built with Next.js, NestJS, PostgreSQL, Prisma, JWT authentication, Gemini-powered assistance, and a rule-based fraud engine.
 
 The project includes customer and administrator interfaces, email verification, password recovery, session management, demo funding, transfers, transaction statements, notifications, account controls, audit logs, and interactive Swagger API documentation.
 
@@ -61,17 +61,14 @@ pnpm install --frozen-lockfile
 
 ### 2. Create the PostgreSQL database
 
-Create an empty database and a user that owns it. For example, while signed in
-as a PostgreSQL administrator:
+Create an empty database and a user that owns it. For example, while signed in as a PostgreSQL administrator:
 
 ```sql
 CREATE USER nuel_bank WITH PASSWORD 'choose-a-local-password';
 CREATE DATABASE ai_banking OWNER nuel_bank;
 ```
 
-You can use an existing PostgreSQL user and database instead. The configured
-user must be able to create tables, indexes, and enum types in the selected
-database.
+You can use an existing PostgreSQL user and database instead. The configured user must be able to create tables, indexes, and enum types in the selected database.
 
 ### 3. Configure the environment
 
@@ -81,8 +78,7 @@ Copy the supplied template:
 cp .env.example .env
 ```
 
-Update `.env` with your local database credentials and unique secrets. A local
-database URL based on the example above would be:
+Update `.env` with your local database credentials and unique secrets. A local database URL based on the example above would be:
 
 ```dotenv
 DATABASE_URL="postgresql://nuel_bank:choose-a-local-password@localhost:5432/ai_banking?schema=public"
@@ -94,20 +90,15 @@ Generate independent application secrets with:
 openssl rand -base64 48
 ```
 
-Run the command separately for `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`,
-`EMAIL_JOB_ENCRYPTION_SECRET`, and `TRANSACTION_VERIFICATION_SECRET`. The two JWT
-secrets must be different and every application secret must contain at least 32
-characters.
+Run the command separately for `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `EMAIL_JOB_ENCRYPTION_SECRET`, and `TRANSACTION_VERIFICATION_SECRET`. The two JWT secrets must be different and every application secret must contain at least 32 characters.
 
-The API reads the root `.env` file. The frontend browser API URL defaults to
-`http://localhost:3001/api`. If you change it, create `apps/web/.env.local`:
+The API reads the root `.env` file. The frontend browser API URL defaults to `http://localhost:3001/api`. If you change it, create `apps/web/.env.local`:
 
 ```dotenv
 NEXT_PUBLIC_API_URL="http://localhost:3001/api"
 ```
 
-`NEXT_PUBLIC_API_URL` is embedded into the frontend during its build, so set it
-before running a production build.
+`NEXT_PUBLIC_API_URL` is embedded into the frontend during its build, so set it before running a production build.
 
 ### 4. Apply migrations and generate Prisma Client
 
@@ -116,21 +107,17 @@ pnpm prisma:deploy
 pnpm prisma:generate
 ```
 
-Use `pnpm prisma:migrate` instead of `prisma:deploy` only when developing a new
-schema migration.
+Use `pnpm prisma:migrate` instead of `prisma:deploy` only when developing a new schema migration.
 
 ### 5. Create an administrator
 
-Set strong local values for `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`, then
-run:
+Set strong local values for `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`, then run:
 
 ```bash
 pnpm admin:seed
 ```
 
-The command is idempotent: running it again promotes or updates the role of the
-configured email without creating a duplicate user. The administrator email is
-marked verified automatically.
+The command is idempotent: running it again promotes or updates the role of the configured email without creating a duplicate user. The administrator email is marked verified automatically.
 
 ### 6. Add academic demo data (optional)
 
@@ -149,7 +136,7 @@ The seeded logins are:
 | Customer      | `demo001@nuel.test`    | `NuelDemo@2026!` |
 | Administrator | `admin.demo@nuel.test` | `NuelDemo@2026!` |
 
-All generated customer addresses follow `demo001@nuel.test` through the configured customer count. Set `DEMO_SEED_COUNT` to an integer rom 200 through 500 and set `DEMO_SEED_PASSWORD` to change the hared local password. Use the same count on later runs; use a disposable database if you want to regenerate a different-sized dataset from scratch.
+All generated customer addresses follow `demo001@nuel.test` through the configured customer count. Set `DEMO_SEED_COUNT` to an integer from 200 through 500 and set `DEMO_SEED_PASSWORD` to change the shared local password. Use the same count on later runs; use a disposable database if you want to regenerate a different-sized dataset from scratch.
 
 ### 7. Start the application
 
@@ -192,6 +179,7 @@ To run one application at a time, use `pnpm dev:web` or `pnpm dev:api`.
 | `EMAIL_FROM`                      | Email       | Verified sender, for example `Nuel Bank <banking@example.com>`.                         |
 | `EMAIL_JOB_ENCRYPTION_SECRET`     | Recommended | Encrypts queued email payloads in PostgreSQL.                                           |
 | `TRANSACTION_VERIFICATION_SECRET` | Recommended | Adds independent protection to transfer verification codes.                             |
+| `CRON_SECRET`                     | Production  | Authenticates Vercel's internal email recovery cron; minimum 32 characters.             |
 | `ADMIN_EMAIL`                     | Admin seed  | Email used by `pnpm admin:seed`.                                                        |
 | `ADMIN_PASSWORD`                  | Admin seed  | Administrator password; minimum 12 characters.                                          |
 | `DEMO_SEED_COUNT`                 | No          | Number of academic demo customers; 200–500, default `300`.                              |
@@ -199,21 +187,16 @@ To run one application at a time, use `pnpm dev:web` or `pnpm dev:api`.
 
 ### SMTP configuration
 
-If any SMTP variable is supplied, provide the full valid SMTP configuration.
-The following combinations are typical; confirm the exact values with your mail
-provider.
+If any SMTP variable is supplied, provide the full valid SMTP configuration. The following combinations are typical; confirm the exact values with your mail provider.
 
 | Connection   | Port | `SMTP_SECURE` | `SMTP_REQUIRE_TLS` |
 | ------------ | ---: | ------------- | ------------------ |
 | STARTTLS     |  587 | `false`       | `true`             |
 | Implicit TLS |  465 | `true`        | `true`             |
 
-Use a verified sending domain and a real sender address. Never commit SMTP
-credentials. Email requests are queued in PostgreSQL and processed in the
-background with retry delays, so the HTTP request does not wait for SMTP.
+Use a verified sending domain and a real sender address. Never commit SMTP credentials. Email requests are queued in PostgreSQL and processed after the HTTP response. SMTP failures receive three short retries during the same background invocation. A protected daily Vercel cron recovers jobs left behind if an invocation is interrupted; there is no continuously polling process.
 
-In development, verification and reset responses may include direct development
-links. Those links are intentionally omitted when `NODE_ENV=production`.
+In development, verification and reset responses may include direct development links. Those links are intentionally omitted when `NODE_ENV=production`.
 
 ## Useful commands
 
@@ -239,16 +222,14 @@ Run commands from the repository root unless noted otherwise.
 
 ## API documentation
 
-Swagger documents public, customer-authenticated, email-verified, and
-administrator-only operations. To try a protected route:
+Swagger documents public, customer-authenticated, email-verified, and administrator-only operations. To try a protected route:
 
 1. Call `POST /api/auth/login` or `POST /api/auth/register`.
 2. Copy the returned `accessToken`.
 3. Select **Authorize** in Swagger UI.
 4. Paste the access token into the bearer-token field.
 
-See [docs/API.md](docs/API.md) for additional details about idempotency headers,
-fraud hints, filters, and statement downloads.
+See [docs/API.md](docs/API.md) for additional details about idempotency headers, fraud hints, filters, and statement downloads.
 
 ## Verification before committing
 
@@ -259,8 +240,7 @@ pnpm test
 pnpm build
 ```
 
-Integration tests modify the configured test data. Run them only against a local
-or disposable PostgreSQL database:
+Integration tests modify the configured test data. Run them only against a local or disposable PostgreSQL database:
 
 ```bash
 pnpm --filter api test:integration
@@ -269,8 +249,7 @@ pnpm --filter api test:integration
 ## Production setup
 
 1. Provision PostgreSQL and configure all secrets in the hosting platform.
-2. Set `NODE_ENV=production`, the public `FRONTEND_URL`, and the production
-   `NEXT_PUBLIC_API_URL`.
+2. Set `NODE_ENV=production`, the public `FRONTEND_URL`, and the production `NEXT_PUBLIC_API_URL`.
 3. Configure a verified SMTP sender and a production Gemini key if required.
 4. Install dependencies and apply migrations:
 
@@ -287,11 +266,9 @@ pnpm --filter api test:integration
    pnpm --filter web start
    ```
 
-6. Place both services behind HTTPS, route the public API origin to the NestJS
-   process, and allow only the configured frontend origin through CORS.
+6. Place both services behind HTTPS, route the public API origin to the NestJS process, and allow only the configured frontend origin through CORS.
 
-The Swagger paths remain relative to the deployed API origin, for example
-`https://api.example.com/api/docs`.
+The Swagger paths remain relative to the deployed API origin, for example `https://api.example.com/api/docs`.
 
 ## Troubleshooting
 
@@ -303,9 +280,7 @@ Another API process is listening on the configured port. Locate it with:
 lsof -i :3001
 ```
 
-Stop the duplicate process, or change `API_PORT` and update
-`NEXT_PUBLIC_API_URL` to match. Do not start a second API instance on the same
-port.
+Stop the duplicate process, or change `API_PORT` and update `NEXT_PUBLIC_API_URL` to match. Do not start a second API instance on the same port.
 
 ### Prisma Client is missing a model or property
 
@@ -315,13 +290,11 @@ The generated client is older than `prisma/schema.prisma`. Regenerate it:
 pnpm prisma:generate
 ```
 
-If the database itself is missing the model, also apply migrations with
-`pnpm prisma:deploy`.
+If the database itself is missing the model, also apply migrations with `pnpm prisma:deploy`.
 
 ### The API cannot connect to PostgreSQL
 
-Confirm PostgreSQL is running, the database exists, and `DATABASE_URL` contains
-the correct host, port, credentials, and database name. Then run:
+Confirm PostgreSQL is running, the database exists, and `DATABASE_URL` contains the correct host, port, credentials, and database name. Then run:
 
 ```bash
 pnpm prisma:status
@@ -329,15 +302,11 @@ pnpm prisma:status
 
 ### Email is not delivered
 
-Check the SMTP host, port, TLS mode, credentials, verified `EMAIL_FROM` domain,
-and the provider's spam or activity logs. Queued jobs and their retry status can
-be inspected with `pnpm prisma:studio` in the `EmailJob` table.
+Check the SMTP host, port, TLS mode, credentials, verified `EMAIL_FROM` domain, and the provider's spam or activity logs. Queued jobs and their retry status can be inspected with `pnpm prisma:studio` in the `EmailJob` table.
 
 ### Browser requests are blocked by CORS
 
-Set `FRONTEND_URL` to the exact origin shown in the browser, including protocol
-and port but excluding paths and a trailing slash. Restart the API after changing
-it.
+Set `FRONTEND_URL` to the exact origin shown in the browser, including protocol and port but excluding paths and a trailing slash. Restart the API after changing it.
 
 ## Security notes
 
@@ -350,5 +319,4 @@ it.
 
 ## License
 
-This repository is intended for academic and demonstration use. Add an explicit
-license before distributing or reusing it outside that context.
+This repository is intended for academic and demonstration use. Add an explicit license before distributing or reusing it outside that context.

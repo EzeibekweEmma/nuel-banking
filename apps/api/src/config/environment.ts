@@ -99,6 +99,9 @@ export function validateEnvironment(
   validateOptionalBoolean(environment, "SMTP_REQUIRE_TLS");
   validateOptionalSecret(environment, "TRANSACTION_VERIFICATION_SECRET");
   validateOptionalSecret(environment, "EMAIL_JOB_ENCRYPTION_SECRET");
+  validateOptionalSecret(environment, "CRON_SECRET");
+  if (nodeEnvironment === "production")
+    requireString(environment, "CRON_SECRET");
 
   const smtpKeys = ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "EMAIL_FROM"];
   const smtpConfigured = smtpKeys.some(

@@ -23,7 +23,7 @@ describeIntegration("TransactionsService PostgreSQL integration", () => {
       reasons: [],
     }),
   };
-  const verificationMailer = { queue: jest.fn() };
+  const verificationMailer = { queue: jest.fn(), scheduleDelivery: jest.fn() };
   const service = new TransactionsService(
     prisma as unknown as PrismaService,
     fraudService as never,

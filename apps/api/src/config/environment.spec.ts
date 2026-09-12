@@ -36,4 +36,24 @@ describe("validateEnvironment", () => {
       }),
     ).toThrow("must either both be set or both be omitted");
   });
+
+  it("requires a strong cron secret in production", () => {
+    expect(() =>
+      validateEnvironment({ ...validEnvironment, NODE_ENV: "production" }),
+    ).toThrow("CRON_SECRET is required");
+    expect(() =>
+      validateEnvironment({
+        ...validEnvironment,
+        NODE_ENV: "production",
+        CRON_SECRET: "short",
+      }),
+    ).toThrow("at least 32 characters");
+    expect(() =>
+      validateEnvironment({
+        ...validEnvironment,
+        NODE_ENV: "production",
+        CRON_SECRET: "c".repeat(32),
+      }),
+    ).not.toThrow();
+  });
 });

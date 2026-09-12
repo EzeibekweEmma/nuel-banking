@@ -68,7 +68,7 @@ async function bootstrap(): Promise<void> {
   );
   setupSwagger(app);
 
-  await app.listen(config.getOrThrow<string>("API_PORT"));
+  await app.listen(process.env.PORT ?? config.getOrThrow<string>("API_PORT"));
 }
 
 void bootstrap();

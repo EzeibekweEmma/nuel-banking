@@ -142,4 +142,79 @@ describe("EmailOutboxService", () => {
       },
     });
   });
+
+  it("registers background processing with the Vercel request lifetime", async () => {
+    const waitUntil = jest.fn();
+    const requestContext = Symbol.for("@vercel/request-context");
+    Object.defineProperty(globalThis, requestContext, {
+      configurable: true,
+      value: { get: () => ({ waitUntil }) },
+    });
+    emailJob.findFirst.mockResolvedValue(null);
+
+    try {
+      service.scheduleProcessing();
+
+      expect(waitUntil).toHaveBeenCalledWith(expect.any(Promise));
+      await waitUntil.mock.calls[0][0];
+    } finally {
+      Reflect.deleteProperty(globalThis, requestContext);
+    }
+  });
+
+  it("retries SMTP three times before permanently failing the job", async () => {
+    jest.useFakeTimers();
+    const sendMail = jest.fn().mockRejectedValue({ code: "ECONNREFUSED" });
+    jest.mocked(createTransport).mockReturnValue({
+      sendMail,
+      close: jest.fn(),
+    } as never);
+    config.getOrThrow.mockImplementation((key: string) =>
+      key === "SMTP_HOST" ? "smtp.example.com" : "Nuel <mail@example.com>",
+    );
+    emailJob.create.mockResolvedValue({});
+    await service.enqueue(prisma as never, passwordResetPayload);
+    const encryptedPayload = emailJob.create.mock.calls[0][0].data
+      .encryptedPayload as string;
+    const now = new Date();
+    emailJob.findFirst
+      .mockResolvedValueOnce({ id: "job-3" })
+      .mockResolvedValueOnce(null);
+    emailJob.updateMany.mockResolvedValue({ count: 1 });
+    emailJob.findUnique.mockResolvedValue({
+      id: "job-3",
+      type: EmailJobType.PASSWORD_RESET,
+      encryptedPayload,
+      status: EmailJobStatus.PROCESSING,
+      attempts: 1,
+      maxAttempts: 4,
+      availableAt: now,
+      lockedAt: now,
+      lastError: null,
+      sentAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    prisma.passwordResetToken.findUnique.mockResolvedValue({
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    try {
+      const processing = service.processPendingJobs();
+      await jest.runAllTimersAsync();
+      await processing;
+
+      expect(sendMail).toHaveBeenCalledTimes(4);
+      expect(emailJob.updateMany).toHaveBeenLastCalledWith({
+        where: { id: "job-3", status: EmailJobStatus.PROCESSING },
+        data: {
+          status: EmailJobStatus.FAILED,
+          lockedAt: null,
+          lastError: "ECONNREFUSED",
+        },
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

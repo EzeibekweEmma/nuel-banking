@@ -236,6 +236,7 @@ export class TransactionsService {
           senderId,
         );
       });
+      this.verificationMailer.scheduleDelivery();
       return result;
     } catch (error) {
       if (
@@ -441,6 +442,7 @@ export class TransactionsService {
         message: "We sent a new verification code to your email address.",
       } as const;
     });
+    this.verificationMailer.scheduleDelivery();
 
     return { message: outcome.message };
   }
