@@ -22,7 +22,7 @@ import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
 import {
   DepositResponseDto,
   FundingConfigurationResponseDto,
-} from "../documentation/dto/api-response.dto";
+} from "../documentation/dto/funding-response.dto";
 import { CreateDemoDepositDto } from "./dto/create-demo-deposit.dto";
 import { FundingService } from "./funding.service";
 

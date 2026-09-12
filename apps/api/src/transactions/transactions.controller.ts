@@ -24,12 +24,12 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { EmailVerifiedGuard } from "../auth/email-verified.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
+import { MessageResponseDto } from "../documentation/dto/auth-response.dto";
 import {
-  MessageResponseDto,
   PaginatedTransactionsResponseDto,
   TransactionResponseDto,
   TransferRecordResponseDto,
-} from "../documentation/dto/api-response.dto";
+} from "../documentation/dto/transaction-response.dto";
 import {
   CustomerTransactionFilterApiQueries,
   PaginationApiQueries,

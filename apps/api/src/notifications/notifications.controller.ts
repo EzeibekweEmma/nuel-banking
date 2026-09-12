@@ -20,7 +20,7 @@ import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
 import {
   NotificationResponseDto,
   UpdatedCountResponseDto,
-} from "../documentation/dto/api-response.dto";
+} from "../documentation/dto/notification-response.dto";
 import { NotificationsService } from "./notifications.service";
 
 @ApiTags("Notifications")

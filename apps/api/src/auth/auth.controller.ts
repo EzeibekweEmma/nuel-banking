@@ -26,7 +26,7 @@ import {
   DevelopmentLinkResponseDto,
   MessageResponseDto,
   UserResponseDto,
-} from "../documentation/dto/api-response.dto";
+} from "../documentation/dto/auth-response.dto";
 import { RateLimit } from "../rate-limit/rate-limit.decorator";
 import { AuthService, AuthTokens, SessionContext } from "./auth.service";
 import { AuthUser } from "./auth-user.interface";

@@ -4,7 +4,7 @@ import { AuthUser } from "../auth/auth-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
-import { ProfileResponseDto } from "../documentation/dto/api-response.dto";
+import { ProfileResponseDto } from "../documentation/dto/auth-response.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { UsersService } from "./users.service";
 

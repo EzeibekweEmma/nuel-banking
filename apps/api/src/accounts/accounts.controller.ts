@@ -13,7 +13,7 @@ import {
   AccountResponseDto,
   BalanceResponseDto,
   RecipientResponseDto,
-} from "../documentation/dto/api-response.dto";
+} from "../documentation/dto/account-response.dto";
 import { RateLimit } from "../rate-limit/rate-limit.decorator";
 import { AccountsService } from "./accounts.service";
 

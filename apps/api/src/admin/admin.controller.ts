@@ -24,8 +24,8 @@ import {
   PaginatedAuditLogsResponseDto,
   PaginatedCustomersResponseDto,
   PaginatedFraudAssessmentsResponseDto,
-  TransferRecordResponseDto,
-} from "../documentation/dto/api-response.dto";
+} from "../documentation/dto/admin-response.dto";
+import { TransferRecordResponseDto } from "../documentation/dto/transaction-response.dto";
 import {
   AdminTransactionApiQueries,
   PaginationApiQueries,

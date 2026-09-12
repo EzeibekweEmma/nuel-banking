@@ -21,7 +21,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { EmailVerifiedGuard } from "../auth/email-verified.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedApi } from "../documentation/authenticated-api.decorator";
-import { BeneficiaryResponseDto } from "../documentation/dto/api-response.dto";
+import { BeneficiaryResponseDto } from "../documentation/dto/beneficiary-response.dto";
 import { BeneficiariesService } from "./beneficiaries.service";
 import { CreateBeneficiaryDto } from "./dto/create-beneficiary.dto";
 
